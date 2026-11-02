@@ -28,6 +28,7 @@ import '../io/backup.dart';
 import '../io/home_widgets.dart';
 import '../io/sheet_import.dart';
 import '../l10n/strings.dart';
+import '../net/net_gate.dart';
 import '../platform.dart';
 import '../sync/sync_engine.dart';
 import '../sync/sync_folder.dart';
@@ -76,6 +77,10 @@ class AppState extends ChangeNotifier {
 
   /// The automatic recording disclosure was accepted (see confirmCaptureDisclosure).
   bool captureConsent = false;
+
+  /// Just onboarded on the phone: the shell opens the recording setup once, right after the
+  /// first run (not saved — if Android closes the app meanwhile, the home banner leads there).
+  bool captureIntroPending = false;
   List<Category> categories = [];
   List<Account> accounts = [];
 
@@ -224,6 +229,8 @@ class AppState extends ChangeNotifier {
   // --- Lifecycle ---
 
   Future<void> init({bool syncAfter = true}) async {
+    // Before anything can go online: the "no internet" switch and the log of requests.
+    await netGate.attach(read: repo.setting, write: repo.setSetting);
     await repo.applyLedgerPalette();
     currentLanguage = await repo.setting('language') ?? 'ru';
     onboarded = await repo.setting('onboarded') == '1';
@@ -654,13 +661,23 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// First start: country (presets currency and accounts on a fresh install) and language.
-  Future<void> completeOnboarding({required String country, required String lang}) async {
+  /// First start: country (presets currency and accounts on a fresh install) and language, and
+  /// the monthly budget when one was chosen ([budgetMinor], in the base currency) or turned off
+  /// ([budgetOn] false) — saved before the app opens, so Home shows it from the first frame.
+  Future<void> completeOnboarding({required String country, required String lang, int? budgetMinor, bool? budgetOn}) async {
     await setLanguage(lang);
     final fresh = !await repo.hasTransactions() && !onboarded;
     await repo.applyCountryPreset(country, fresh: fresh, cashName: tr('acc_cash'));
     this.country = country;
     baseCurrency = await repo.setting('base_currency') ?? baseCurrency;
+    if (budgetMinor != null) {
+      final now = DateTime.now();
+      await repo.setBudget(DateTime(now.year, now.month), budgetMinor, baseCurrency);
+    }
+    if (budgetOn != null) {
+      budgetEnabled = budgetOn;
+      await repo.setSetting('budget_enabled', budgetOn ? '1' : '0');
+    }
     await rates.load(baseCurrency);
     await repo.setSetting('onboarded', '1');
     onboarded = true;

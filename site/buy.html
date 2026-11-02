@@ -48,6 +48,12 @@
     </div>
   </section>
 
+  <label class="consent">
+    <input type="checkbox" id="consent">
+    <span data-i18n-html="b_consent">Даю согласие на обработку персональных данных</span>
+  </label>
+  <p class="hint small offer" data-i18n-html="b_offer"></p>
+
   <!-- 3. Stars: everything happens in Telegram -->
   <section class="stepbox" id="s-stars" hidden>
     <h2><span class="n">3</span><span data-i18n="b_s4">Оплата</span></h2>
@@ -55,6 +61,7 @@
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.4 4.2 2.9 11.3c-1.3.5-1.2 1.2-.2 1.5l4.7 1.5 1.8 5.6c.2.6.4.8.9.8.4 0 .6-.2.9-.5l2.3-2.2 4.8 3.5c.9.5 1.5.2 1.7-.8l3.1-14.7c.3-1.3-.5-1.9-1.5-1.8zM8.7 14.1l9.6-6c.5-.3.9-.1.5.2l-8.2 7.4-.3 3.4-1.6-5z"/></svg>
       <span id="starsLbl"></span>
     </a>
+    <p class="hint need" id="starsNeed" data-i18n="b_need_consent" hidden></p>
     <p class="hint" data-i18n="b_stars_note"></p>
   </section>
 
@@ -76,7 +83,7 @@
   <!-- 4. QR: pay -->
   <section class="stepbox" id="s-qr" hidden>
     <h2><span class="n">4</span><span data-i18n="b_s4">Оплата</span></h2>
-    <p class="hint" id="needMail" data-i18n="b_need_mail" hidden></p>
+    <p class="hint" id="needMail" hidden></p>
     <div class="paycard" id="paycard">
       <div class="qrcol">
         <div class="qr big" id="qr"></div>
@@ -109,6 +116,9 @@
     <a class="brand" href="./"><img src="icon.svg" alt=""><span>Сальдо</span></a>
     <span data-i18n="ft_site">Сайт без cookies и счётчиков</span>
     <a href="https://github.com/Dania201032/saldo" data-i18n="ft_code">Исходный код</a>
+    <span data-i18n="ft_seller">ИП Деминцев Д. Д. · ИНН 250816664797 · ОГРНИП 326253600109353</span>
+    <a href="terms.html" data-i18n="ft_terms">Оферта</a>
+    <a href="privacy.html" data-i18n="ft_policy">Политика и cookies</a>
     <span class="sp">© 2026 Сальдо</span>
   </div>
 </footer>

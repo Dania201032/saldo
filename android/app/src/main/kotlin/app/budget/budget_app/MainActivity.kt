@@ -81,6 +81,18 @@ class MainActivity : FlutterFragmentActivity() {
                     Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")),
                     result,
                 )
+                // Android's own count of this app's network bytes since boot (Settings → Privacy and
+                // internet compares it with the app's log). -1 where the phone doesn't count.
+                "trafficStats" -> {
+                    val uid = android.os.Process.myUid()
+                    result.success(
+                        mapOf(
+                            "tx" to android.net.TrafficStats.getUidTxBytes(uid),
+                            "rx" to android.net.TrafficStats.getUidRxBytes(uid),
+                            "bootMs" to System.currentTimeMillis() - android.os.SystemClock.elapsedRealtime(),
+                        )
+                    )
+                }
                 "requestPostNotifications" -> {
                     if (Build.VERSION.SDK_INT >= 33) {
                         requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)

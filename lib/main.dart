@@ -136,7 +136,20 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver, SingleTicker
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _openPendingSplit());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _openCaptureIntro();
+      _openPendingSplit();
+    });
+  }
+
+  /// Right after the first run on the phone: switching on automatic recording, the one setup
+  /// that matters, over the home screen ("Later" closes it; the home banner leads back).
+  void _openCaptureIntro() {
+    final state = context.read<AppState>();
+    if (!state.captureIntroPending || !mounted) return;
+    state.captureIntroPending = false;
+    if (state.captureReady) return;
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const CaptureSetupScreen(firstRun: true)));
   }
 
   @override

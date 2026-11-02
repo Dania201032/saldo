@@ -126,18 +126,22 @@ class Repository {
     return {for (final r in rows) r['id'] as int: (r['balance'] as num).toInt()};
   }
 
+  /// A country's currency, typical accounts (name, type) and a starting monthly budget in minor
+  /// units (the first run offers it as the budget).
+  static (String, List<(String, String)>, int) countryPreset(String country) => switch (country) {
+        'RU' => ('RUB', [('Сбер', 'sber'), ('Т-Банк', 'tbank')], 3000000),
+        'KZ' => ('KZT', [('Kaspi', 'kaspi'), ('Halyk', 'halyk')], 15000000),
+        'DE' => ('EUR', [('DKB', 'dkb'), ('Sparkasse', 'sparkasse')], 100000),
+        'NL' => ('EUR', [('ING', 'ing'), ('bunq', 'bunq')], 100000),
+        _ => ('CNY', [('Alipay', 'alipay'), ('WeChat', 'wechat')], 300000),
+      };
+
   /// First-run setup for a country: its currency and typical accounts. Only for a fresh install
   /// ([fresh]); otherwise existing accounts and data are left alone.
   Future<void> applyCountryPreset(String country, {required bool fresh, required String cashName}) async {
     await setSetting('country', country);
     if (!fresh) return;
-    final (currency, accounts, budget) = switch (country) {
-      'RU' => ('RUB', [('Сбер', 'sber'), ('Т-Банк', 'tbank')], 3000000),
-      'KZ' => ('KZT', [('Kaspi', 'kaspi'), ('Halyk', 'halyk')], 15000000),
-      'DE' => ('EUR', [('DKB', 'dkb'), ('Sparkasse', 'sparkasse')], 100000),
-      'NL' => ('EUR', [('ING', 'ing'), ('bunq', 'bunq')], 100000),
-      _ => ('CNY', [('Alipay', 'alipay'), ('WeChat', 'wechat')], 300000),
-    };
+    final (currency, accounts, budget) = countryPreset(country);
     await db.delete('accounts');
     for (final (name, type) in accounts) {
       await addAccount(name, currency, type);

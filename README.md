@@ -51,8 +51,10 @@ Windows может показать «Windows защитил ваш компью
 
 ## Где хранятся данные
 
-- **Только на ваших устройствах.** У приложения нет сервера, аккаунтов, рекламы и аналитики — ни одной библиотеки, которая
-  отправляет данные куда-либо (список библиотек: [`pubspec.yaml`](pubspec.yaml), [`android/app/build.gradle.kts`](android/app/build.gradle.kts)).
+- **Только на ваших устройствах.** У приложения нет сервера, аккаунтов, рекламы, аналитики и отчётов об ошибках
+  (список библиотек: [`pubspec.yaml`](pubspec.yaml), [`android/app/build.gradle.kts`](android/app/build.gradle.kts);
+  тест [`test/net_guard_test.dart`](test/net_guard_test.dart) не пропустит в сборку библиотеки аналитики и рекламы).
+  Из сервисов Google в приложении только ML Kit для распознавания скриншотов, о нём ниже.
 - **База зашифрована** (SQLCipher, AES-256). Ключ случайный и хранится в защищённом хранилище Android (Keystore):
   [`lib/data/database.dart`](lib/data/database.dart), [`lib/security/secure_store.dart`](lib/security/secure_store.dart).
 - **Временные файлы автозаписи** (платежи, пойманные, пока приложение закрыто) тоже зашифрованы ключом Keystore:
@@ -65,11 +67,51 @@ Windows может показать «Windows защитил ваш компью
 
 ## Что приложение отправляет в интернет
 
-Только один вид запросов — **курсы валют** (чтобы пересчитать траты в другой валюте):
-[`lib/data/rates.dart`](lib/data/rates.dart). В запросе есть только код валюты и дата, например
-`.../currencies/cny.json`. Ни сумм, ни покупок, ни чего-либо о вас.
+Весь сетевой код — в одном файле, [`lib/net/net_gate.dart`](lib/net/net_gate.dart). Через него проходит каждый
+запрос: он сверяется со списком адресов ниже, записывается в журнал, который видно в самом приложении, и не уходит
+вовсе, если вы выключили интернет. Тест [`test/net_guard_test.dart`](test/net_guard_test.dart) при каждой сборке
+(и на GitHub перед каждым выпуском) проверяет, что ни один другой файл — ни на Dart, ни на Kotlin — не открывает
+соединений.
 
-Проверить, что других адресов нет, можно поиском по коду: `https://` в коде приложения встречается только в этом файле (и в двух комментариях-ссылках на документацию Android в `AndroidManifest.xml`).
+| Куда | Когда | Что уходит |
+|---|---|---|
+| `cdn.jsdelivr.net`, запасной — `*.currency-api.pages.dev` (курсы валют, [`rates.dart`](lib/data/rates.dart)) | Только если есть траты или счета в другой валюте и на какую-то дату нет курса: обычно раз в день — при открытии приложения или обновлении виджетов, а также при выгрузке в Excel | Адрес вида `…/currency-api@2026-10-01/v1/currencies/cny.json`: код основной валюты и дата. Сервис видит ваш IP-адрес и даты, на которые нужен курс. Ни сумм, ни покупок, ни счетов |
+| `api.bunq.com` ([`bunq.dart`](lib/import/bunq.dart)) | Только когда вы сами загружаете выписку из bunq | Ваш API-ключ bunq и запрос операций — напрямую в bunq |
+| Сервер вашего немецкого банка (FinTS, [`lib/import/fints/`](lib/import/fints/)) | Только когда вы сами загружаете выписку. Пока выключено: ждём регистрации программы у Deutsche Kreditwirtschaft | Логин, PIN и TAN — напрямую банку. PIN не сохраняется |
+
+Больше приложение никуда не подключается: нет аналитики, рекламы, отчётов об ошибках, регистрации и проверки
+обновлений. Разработчик не узнаёт ни о вас, ни даже о том, что вы установили приложение.
+
+Что проходит **через другие программы**:
+
+- **Синхронизация и резервные копии.** Приложение только кладёт файлы в выбранную вами папку; в облако их отправляет
+  программа облака (Google Drive, Яндекс Диск, OneDrive…), а не «Сальдо». Файлы зашифрованы вашим паролем: облако
+  видит их имена, размер и время, но не содержимое.
+- **Распознавание скриншотов оплаты и QR-кодов чеков (Android)** — Google ML Kit через Сервисы Google Play, прямо на
+  телефоне; по документации Google, картинка с телефона не уходит. Модель распознавания Сервисы Google Play скачивают
+  сами — это их трафик, не «Сальдо». Библиотека ML Kit умеет сама отправлять Google статистику использования (какая
+  функция, сколько работала — без картинок и текста) прямо из приложения. В «Сальдо» это отключено: из сборки убран
+  модуль выгрузки этой статистики ([`AndroidManifest.xml`](android/app/src/main/AndroidManifest.xml),
+  `tools:node="remove"`), тест следит, чтобы он не вернулся.
+- **Облачная копия Android (Google) и перенос на новый телефон** для «Сальдо» выключены:
+  [`data_extraction_rules.xml`](android/app/src/main/res/xml/data_extraction_rules.xml), `allowBackup="false"`.
+
+## Как проверить самому, не веря нам на слово
+
+1. **В приложении:** Настройки → «Приватность и интернет». Там список адресов, **журнал каждого запроса** (когда,
+   куда, зачем, сколько байт — в том числе неудачных и заблокированных), переключатель **«Не выходить в интернет»** и
+   **счётчик трафика, который ведёт сам Android**, а не приложение: с ним можно сверить журнал.
+2. **Режим полёта.** Включите его: работает всё, кроме загрузки курсов и выписок банков.
+3. **Расход трафика по данным Android:** Настройки телефона → Приложения → Сальдо → «Мобильный интернет и Wi-Fi».
+4. **Брандмауэр:** [NetGuard](https://netguard.me), [RethinkDNS](https://rethinkdns.com) или
+   [TrackerControl](https://trackercontrol.org) (бесплатные, без root) покажут каждое подключение «Сальдо» — адреса
+   будут только из таблицы выше. Можно и вовсе запретить приложению интернет.
+5. **Трекеры:** ClassyShark3xodus (F-Droid) ищет известные библиотеки слежки в установленном приложении прямо на
+   телефоне; для APK-файла на компьютере есть [exodus-standalone](https://github.com/Exodus-Privacy/exodus-standalone).
+6. **Windows:** «Монитор ресурсов» (Win+R → `resmon`) → «Сеть» показывает подключения `Saldo.exe`; брандмауэр
+   Windows может их запретить.
+7. **Код и сборка:** сетевые вызовы есть только в [`lib/net/net_gate.dart`](lib/net/net_gate.dart), а файлы на
+   странице выпусков собирает сам GitHub из этого кода — проверка командой `gh attestation verify` (см. выше).
 
 ## Разрешения и зачем они
 
@@ -77,7 +119,7 @@ Windows может показать «Windows защитил ваш компью
 |---|---|---|
 | Специальные возможности | Прочитать экран «Оплата прошла» и список операций — **только** в Alipay, WeChat и приложениях банков: сумма, дата, получатель | [`payment_accessibility.xml`](android/app/src/main/res/xml/payment_accessibility.xml) (список приложений), [`PaymentAccessibilityService.kt`](android/app/src/main/kotlin/app/budget/budget_app/capture/PaymentAccessibilityService.kt) |
 | Доступ к уведомлениям | Уведомления о платежах Alipay, WeChat, банков и Google Wallet; уведомления других приложений сразу отбрасываются | [`PaymentNotificationListener.kt`](android/app/src/main/kotlin/app/budget/budget_app/capture/PaymentNotificationListener.kt) |
-| Интернет | Только курсы валют (см. выше) | [`rates.dart`](lib/data/rates.dart) |
+| Интернет | Курсы валют; выписки bunq и FinTS, только если вы их загружаете (см. выше) | [`net_gate.dart`](lib/net/net_gate.dart) |
 | Уведомления | «Записано: −45 ¥», напоминания о регулярных платежах | [`CaptureInbox.kt`](android/app/src/main/kotlin/app/budget/budget_app/capture/CaptureInbox.kt), [`Reminders.kt`](android/app/src/main/kotlin/app/budget/budget_app/Reminders.kt) |
 | Запуск после перезагрузки | Снова поставить напоминания | [`Reminders.kt`](android/app/src/main/kotlin/app/budget/budget_app/Reminders.kt) |
 | Биометрия | Открывать приложение отпечатком, если включена блокировка | [`app_lock.dart`](lib/security/app_lock.dart) |
@@ -122,11 +164,24 @@ The APK is **built by GitHub from this repository's code** ([workflow](.github/w
 attestation. Check it with [GitHub CLI](https://cli.github.com):
 `gh attestation verify Saldo-0.10.1.apk --repo Dania201032/saldo` → "Verification succeeded".
 
-- **Data stays on the phone.** No server, no accounts, no ads, no analytics libraries ([`pubspec.yaml`](pubspec.yaml)).
+- **Data stays on your devices.** No server, no accounts, no ads, no analytics or crash-report libraries ([`pubspec.yaml`](pubspec.yaml);
+  [`test/net_guard_test.dart`](test/net_guard_test.dart) keeps them out).
 - **The database is encrypted** (SQLCipher, AES-256) with a random key kept in the Android Keystore.
 - **Google cloud backup is off** ([`data_extraction_rules.xml`](android/app/src/main/res/xml/data_extraction_rules.xml)).
   The app's own backup is optional, encrypted with your password, and goes only to a folder you choose.
-- **The only network request is exchange rates** ([`lib/data/rates.dart`](lib/data/rates.dart)): a currency code and a date, nothing about you.
+- **All network code is in one file**, [`lib/net/net_gate.dart`](lib/net/net_gate.dart): every request is checked
+  against a fixed list, logged where you can see it (Settings → Privacy and internet), and not sent at all while
+  "Stay offline" is on. A test fails the build if any other Dart or Kotlin file opens a connection. The app connects
+  only to: **exchange rates** (`cdn.jsdelivr.net`, fallback `*.currency-api.pages.dev`) — a currency code and a date,
+  when a rate is missing for an operation in another currency; **bunq** (`api.bunq.com`) and **your German bank**
+  (FinTS, not enabled yet) — only when you download a statement yourself. No analytics, crash reports or update checks.
+- **Google ML Kit** reads payment screenshots and receipt QR codes on the phone through Google Play services (which
+  download the model themselves). ML Kit's own usage statistics upload is removed from the build
+  ([`AndroidManifest.xml`](android/app/src/main/AndroidManifest.xml)).
+- **Check it yourself:** the in-app log next to **Android's own byte counter** for the app, airplane mode, Android's
+  per-app data usage, a firewall such as NetGuard, RethinkDNS or TrackerControl, ClassyShark3xodus or
+  [exodus-standalone](https://github.com/Exodus-Privacy/exodus-standalone) for tracker libraries, and
+  `gh attestation verify` for the build.
 - **Accessibility and notification access** are used only for payment screens and notifications of Alipay, WeChat,
   bank apps and Google Wallet ([`payment_accessibility.xml`](android/app/src/main/res/xml/payment_accessibility.xml));
   only the found operation (amount, date, payee) is kept. Chats, passwords, contacts and other apps are never read.

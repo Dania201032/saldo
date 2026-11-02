@@ -473,6 +473,17 @@ footer .sp { margin-left: auto; }
 .hint[hidden] { display: none; }
 #needMail { margin: 0 0 12px; color: var(--ink); }
 .paycard { display: grid; grid-template-columns: 200px 1fr; gap: 22px; align-items: start; transition: opacity .3s, filter .3s; }
+.consent { display: flex; gap: 12px; align-items: flex-start; margin: 4px 0 0; padding: 14px 16px; border: 1px solid var(--rule); border-radius: 14px; background: var(--card); font-size: 15px; cursor: pointer; }
+.consent input { width: 20px; height: 20px; margin: 1px 0 0; flex: none; accent-color: var(--accent); }
+.consent a, .offer a, .legal a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.offer { margin: 8px 2px 16px; }
+.hint.need { color: var(--ink); margin: 0 0 12px; }
+.btn.off { opacity: .4; cursor: not-allowed; }
+.legal article h1 { font-size: clamp(28px, 5vw, 40px); }
+.legal article h2 { font-size: 19px; margin: 28px 0 8px; }
+.legal article p, .legal article li { font-size: 16px; line-height: 1.6; margin: 0 0 10px; }
+.legal article ul { padding-left: 22px; margin: 0 0 10px; }
+.legal #lgNote { margin: 0 0 16px; color: var(--ink); }
 .paycard.locked { opacity: .35; filter: blur(3px); pointer-events: none; user-select: none; }
 .qrcol { display: grid; gap: 8px; justify-items: center; }
 .qr { width: 132px; height: 132px; border-radius: 12px; background: #fff; display: grid; place-items: center; overflow: hidden; }

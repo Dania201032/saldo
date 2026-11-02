@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:pointycastle/export.dart';
 
 import '../data/models.dart';
+import '../net/net_gate.dart';
 import 'statement.dart';
 
 /// bunq's public API, called straight from the device with the user's own API key (bunq app →
@@ -16,7 +17,7 @@ import 'statement.dart';
 /// ("device-server"), then a session token is opened; POST bodies are signed with the key.
 /// Keys starting with "sandbox_" go to bunq's sandbox.
 class BunqClient {
-  BunqClient(this.state, {http.Client? client}) : _http = client ?? http.Client();
+  BunqClient(this.state, {http.Client? client}) : _http = netGate.client(NetPurpose.bunq, inner: client);
 
   /// Everything needed to talk to bunq again without registering anew; kept in secure storage.
   final BunqState state;

@@ -25,6 +25,9 @@ import 'widgets.dart';
 /// Whether the "Add" button shows (it steps aside while the list scrolls down).
 final _homeFab = ValueNotifier(true);
 
+/// Whether the period's finer figures (pace, average per day, income) are open on Home.
+final _homeDetails = ValueNotifier(false);
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -154,24 +157,18 @@ class _TodayBlock extends StatelessWidget {
           ]),
         ]),
         const SizedBox(height: 10),
-        // How the day's limit is counted; a tap switches between the two ways.
+        // The other way of counting the day's limit, in one line (the limit and the spending are
+        // already beside the figure); a tap explains both ways and switches.
         InkWell(
           onTap: () => chooseDailyLimitMode(context),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(
-                  tr(stats.fixedDaily ? 'today_formula_fixed' : 'today_formula',
-                      [formatMoney(stats.todayAllowance.round(), currency), formatMoney(stats.spentTodayMinor, currency)]),
-                  style: small,
-                ),
-                Text(
-                  stats.fixedDaily
-                      ? tr('even_daily_limit', [formatMoney(stats.evenAllowance.round(), currency)])
-                      : tr('usual_daily_limit', [formatMoney(stats.dailyLimit.round(), currency)]),
-                  style: small,
-                ),
-              ]),
+              child: Text(
+                stats.fixedDaily
+                    ? tr('even_daily_limit', [formatMoney(stats.evenAllowance.round(), currency)])
+                    : tr('usual_daily_limit', [formatMoney(stats.dailyLimit.round(), currency)]),
+                style: small,
+              ),
             ),
             Padding(
               padding: const EdgeInsets.only(left: 8, top: 2),
@@ -251,11 +248,32 @@ class _PeriodSummary extends StatelessWidget {
           if (daysLeftAfterToday > 0)
             LedgerRow(tr('per_day_from_tomorrow'), m(stats.remainingMinor / daysLeftAfterToday),
                 valueColor: bad(stats.remainingMinor < 0)),
-          LedgerRow(tr('pace'), '${pace >= 0 ? '+' : ''}${m(pace)}', valueColor: Ledger.signOf(context, pace)),
-          LedgerRow(tr('avg_per_day'), m(stats.averagePerDay)),
           LedgerRow(tr('forecast_left'), m(stats.forecastRemainder), valueColor: bad(stats.forecastRemainder < 0)),
         ],
-        if (stats.incomeMinor > 0) LedgerRow(tr('income'), m(stats.incomeMinor), valueColor: Ledger.goodOf(context)),
+        // The finer figures on request: the first look stays at "left", "per day" and "forecast".
+        if (current || stats.incomeMinor > 0)
+          ValueListenableBuilder(
+            valueListenable: _homeDetails,
+            builder: (context, open, _) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              if (open) ...[
+                if (current) ...[
+                  LedgerRow(tr('pace'), '${pace >= 0 ? '+' : ''}${m(pace)}', valueColor: Ledger.signOf(context, pace)),
+                  LedgerRow(tr('avg_per_day'), m(stats.averagePerDay)),
+                ],
+                if (stats.incomeMinor > 0) LedgerRow(tr('income'), m(stats.incomeMinor), valueColor: Ledger.goodOf(context)),
+              ],
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact, foregroundColor: muted),
+                  iconAlignment: IconAlignment.end,
+                  icon: Icon(open ? Icons.expand_less : Icons.expand_more, size: 18),
+                  label: Text(tr(open ? 'ux_less_figures' : 'ux_more_figures')),
+                  onPressed: () => _homeDetails.value = !open,
+                ),
+              ),
+            ]),
+          ),
       ]),
     );
   }

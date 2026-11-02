@@ -12,6 +12,8 @@ part 'strings_desk_f.dart';
 part 'strings_desk_g.dart';
 part 'strings_eu.dart';
 part 'strings_hh.dart';
+part 'strings_ux.dart';
+part 'strings_privacy.dart';
 
 const supportedLanguages = ['ru', 'en', 'zh', 'kk', 'de', 'nl'];
 
@@ -1116,7 +1118,7 @@ set currentLanguage(String lang) => _lang = supportedLanguages.contains(lang) ? 
 String tr(String key, [List<Object?> args = const []]) {
   final i = supportedLanguages.indexOf(_lang);
   final desk = _desk[key];
-  final list = _s[key] ?? _hh[key];
+  final list = _s[key] ?? _hh[key] ?? _ux[key] ?? _privacy[key];
   if (list == null && desk == null) return key;
   var s = desk != null
       ? desk[i < desk.length ? i : 1]
@@ -1132,6 +1134,8 @@ String tr(String key, [List<Object?> args = const []]) {
 bool hasTr(String key) =>
     (_desk[key]?.length ?? 0) == supportedLanguages.length ||
     (_hh[key]?.length ?? 0) == supportedLanguages.length ||
+    (_ux[key]?.length ?? 0) == supportedLanguages.length ||
+    (_privacy[key]?.length ?? 0) == supportedLanguages.length ||
     (_s.containsKey(key) && _deNl.containsKey(key));
 
 /// Locale for intl number/date formatting.

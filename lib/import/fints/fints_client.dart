@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import '../../net/net_gate.dart';
 import '../bank_formats.dart';
 import '../statement.dart';
 import 'fints_message.dart';
@@ -33,7 +34,7 @@ class FintsClient {
     http.Client? client,
     this.productId = fintsProductId,
   })  : customerId = customerId ?? userId,
-        _http = client ?? http.Client();
+        _http = netGate.client(NetPurpose.fints, inner: client);
 
   final String url;
   final String blz;

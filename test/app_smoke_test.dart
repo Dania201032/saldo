@@ -17,6 +17,7 @@ import 'package:budget_app/ui/home_screen.dart';
 import 'package:budget_app/ui/household_screen.dart';
 import 'package:budget_app/ui/lock_screen.dart';
 import 'package:budget_app/ui/net_worth_screen.dart';
+import 'package:budget_app/ui/onboarding.dart';
 import 'package:budget_app/ui/settings_screen.dart';
 import 'package:budget_app/ui/statement_import_screen.dart';
 import 'package:budget_app/ui/plus_screen.dart';
@@ -95,7 +96,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('first start: language -> country -> guide -> app', (tester) async {
+  testWidgets('first start: language -> country -> budget -> recording setup -> app', (tester) async {
     tester.view.physicalSize = const Size(1080, 2392);
     tester.view.devicePixelRatio = 2.75;
     addTearDown(tester.view.reset);
@@ -117,21 +118,45 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text(tr('next')));
     await tester.pumpAndSettle();
-    // The app lock is offered; "Not now" leaves it off.
-    expect(find.text(tr('lock_offer_t')), findsOneWidget);
-    await tester.tap(find.text(tr('lock_offer_no')));
-    await tester.pumpAndSettle();
-    expect(appLock.enabled, isFalse);
-    // Guide in Kazakh: walk through all 5 steps.
-    for (var i = 0; i < 4; i++) {
-      await tester.tap(find.text(tr('next')));
-      await tester.pumpAndSettle();
-    }
-    await tester.tap(find.text(tr('start')));
+    // The monthly budget, prefilled with the country's usual amount, in its currency.
+    expect(find.text(tr('ux_budget_t')), findsOneWidget);
+    expect(find.text('150000'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), '200 000');
+    await tester.tap(find.text(tr('next')));
     await settle(tester);
     expect(state.onboarded, isTrue);
     expect(state.baseCurrency, 'KZT');
+    expect(state.budgetEnabled, isTrue);
+    expect(state.rawMonthBudget(DateTime.now()), 20000000);
+    expect(appLock.enabled, isFalse, reason: 'the app lock is offered in Settings, not on the first run');
+    // Then switching on automatic recording, over the home screen; "Later" goes to the app.
+    expect(find.text(tr('ux_cap_t')), findsOneWidget);
+    expect(find.text(tr('ux_btn_on')), findsOneWidget);
+    await tester.tap(find.text(tr('ux_later')));
+    await settle(tester);
     expect(find.text(tr('nav_home')), findsWidgets);
+    expect(find.text(tr('capture_banner')), findsOneWidget, reason: 'the home banner leads back to the setup');
+  });
+
+  testWidgets('first start without a budget', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2392);
+    tester.view.devicePixelRatio = 2.75;
+    addTearDown(tester.view.reset);
+    currentLanguage = 'ru';
+    final state = await makeState(tester, withData: false);
+    await tester.pumpWidget(ChangeNotifierProvider.value(value: state, child: const BudgetApp()));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(tr('next')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(tr('next')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(tr('ux_budget_none')));
+    await settle(tester);
+    expect(state.onboarded, isTrue);
+    expect(state.budgetEnabled, isFalse);
+    await tester.tap(find.text(tr('ux_later')));
+    await settle(tester);
+    expect(find.text(tr('budget_off_card_sub')), findsOneWidget);
   });
 
   testWidgets('home-screen widget snapshot carries what the widgets draw', (tester) async {
@@ -274,8 +299,10 @@ void main() {
       // Settings: help, categories, backup screens.
       await tester.tap(find.text(tr('nav_settings')).last);
       await settle(tester);
-      // In the order they appear: the scroll only goes down.
-      for (final item in ['categories', 'backup', 'help']) {
+      // From the top, in the order they appear: the scroll only goes down.
+      await tester.drag(find.byType(Scrollable).last, const Offset(0, 3000));
+      await tester.pumpAndSettle();
+      for (final item in ['categories', 'backup', 'ux_io', 'ux_more', 'help']) {
         await tester.scrollUntilVisible(find.text(tr(item)), 200, scrollable: find.byType(Scrollable).last);
         // Keep it clear of the app bar and the bottom navigation bar.
         await Scrollable.ensureVisible(tester.element(find.text(tr(item))), alignment: 0.4);
@@ -287,7 +314,7 @@ void main() {
       }
 
       // Screens reached deeper in Settings, opened directly (their tiles may sit under the navigation bar).
-      for (final screen in const <Widget>[CaptureSetupScreen(), BankLogScreen(), RatesScreen(), LockSettingsScreen(), StatementImportScreen(), HouseholdScreen(), HouseholdSetupScreen(), HouseholdJoinScreen(), NetWorthScreen(), EnvelopesScreen(), TaxScreen(), PlusScreen()]) {
+      for (final screen in const <Widget>[CaptureSetupScreen(), CaptureSetupScreen(firstRun: true), GuideScreen(closeOnFinish: true), MoreFeaturesScreen(), ImportExportScreen(), BankLogScreen(), RatesScreen(), LockSettingsScreen(), StatementImportScreen(), HouseholdScreen(), HouseholdSetupScreen(), HouseholdJoinScreen(), NetWorthScreen(), EnvelopesScreen(), TaxScreen(), PlusScreen()]) {
         Navigator.of(tester.element(find.byType(SettingsScreen))).push(MaterialPageRoute<void>(builder: (_) => screen));
         await settle(tester);
         await back(tester);

@@ -9,6 +9,7 @@ import '../import/fints/fints_banks.dart';
 import '../import/fints/fints_client.dart';
 import '../import/statement.dart';
 import '../l10n/strings.dart';
+import '../net/net_gate.dart';
 import '../security/secure_store.dart';
 import '../state/app_state.dart';
 
@@ -78,6 +79,10 @@ Future<void> _showError(BuildContext context, String message, {List<String> log 
 const _bunqKey = 'bunq_state';
 
 Future<Statement?> downloadFromBunq(BuildContext context) async {
+  if (netGate.off) {
+    await _showError(context, tr('pv_blocked_bank', [tr('pv_title')]));
+    return null;
+  }
   final store = SecureStore.instance;
   final saved = await store.read(_bunqKey);
   var state = saved == null ? null : BunqState.fromJson(jsonDecode(saved) as Map<String, dynamic>);
@@ -228,6 +233,10 @@ class _FintsDialogs implements FintsUi {
 }
 
 Future<Statement?> downloadFromFints(BuildContext context) async {
+  if (netGate.off) {
+    await _showError(context, tr('pv_blocked_bank', [tr('pv_title')]));
+    return null;
+  }
   if (fintsProductId.isEmpty) {
     await _showError(context, tr('fints_not_registered'));
     return null;

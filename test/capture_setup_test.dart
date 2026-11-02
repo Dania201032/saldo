@@ -102,14 +102,34 @@ void main() {
     expect(opened, ['openAccessibility', 'openNotificationAccess']);
   });
 
-  testWidgets('Android 13+: the "Restricted settings" walkthrough opens App info', (tester) async {
+  testWidgets('one button does the next step: notifications, then "Recorded", then the screen', (tester) async {
+    sdk = 34;
+    final state = await pump(tester);
+    state.captureConsent = true;
+    expect(find.text(tr('ux_cap_t')), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, tr('ux_btn_on')));
+    await settle(tester);
+    expect(opened, ['openNotificationAccess']);
+    // Back from Android's settings with the access on: the button moves on by itself.
+    notifications = true;
+    await tester.runAsync(state.refresh);
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(FilledButton, tr('ux_btn_screen')), findsOneWidget, reason: '"Recorded" is already allowed');
+    await tester.tap(find.widgetWithText(FilledButton, tr('ux_btn_screen')));
+    await settle(tester);
+    expect(opened, ['openNotificationAccess', 'openAccessibility']);
+  });
+
+  testWidgets('Android 13+: the "Restricted settings" walkthrough on request opens App info', (tester) async {
     sdk = 34;
     await pump(tester);
-    await tester.scrollUntilVisible(find.text(tr('restricted_t')), 200);
-    expect(find.text(tr('restricted_t')), findsOneWidget);
-    await tester.ensureVisible(find.text(tr('restricted_button')));
+    expect(find.text(tr('rs_title')), findsNothing, reason: 'not detected: only a link, no wall of text');
+    await tester.tap(find.text(tr('ux_cant_switch')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text(tr('restricted_button')));
+    expect(find.text(tr('rs_title')), findsOneWidget);
+    await tester.ensureVisible(find.text(tr('rs_b_btn')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(tr('rs_b_btn')));
     await settle(tester);
     expect(opened, ['openAppInfo']);
   });
@@ -117,7 +137,8 @@ void main() {
   testWidgets('Android 12: no walkthrough', (tester) async {
     sdk = 31;
     await pump(tester);
-    expect(find.text(tr('restricted_t')), findsNothing);
+    expect(find.text(tr('ux_cant_switch')), findsNothing);
+    expect(find.text(tr('rs_title')), findsNothing);
   });
 
   testWidgets('installed from a file: the lock is lifted first — try the switch, then App info', (tester) async {
@@ -126,6 +147,9 @@ void main() {
     final state = await pump(tester);
     state.captureConsent = true;
     expect(find.text(tr('rs_title')), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, tr('ux_btn_on')), findsNothing, reason: 'one way forward: the unlock');
+    await tester.ensureVisible(find.text(tr('rs_a_btn')));
+    await tester.pumpAndSettle();
     await tester.tap(find.text(tr('rs_a_btn')));
     await settle(tester);
     // The switch that is still missing: the notifications come first.
@@ -144,7 +168,9 @@ void main() {
     final state = await pump(tester);
     expect(state.captureNeedsScreen, isFalse);
     expect(state.captureReady, isTrue, reason: 'notifications on, screen reading off');
-    expect(find.textContaining(tr('capture_optional')), findsOneWidget);
+    expect(find.text(tr('ux_cap_done_t')), findsOneWidget);
+    expect(find.text(tr('capture_step1')), findsNothing, reason: 'not a step with bank cards');
+    expect(find.text(tr('ux_screen_offer_t')), findsOneWidget, reason: 'offered for Alipay and WeChat');
     expect(find.text(tr('rs_title')), findsNothing);
   });
 }

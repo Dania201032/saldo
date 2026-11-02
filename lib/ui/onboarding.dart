@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../data/repository.dart';
+import '../domain/currencies.dart';
 import '../l10n/strings.dart';
 import '../platform.dart';
 import '../state/app_state.dart';
 import 'data_screens.dart';
-import 'lock_screen.dart';
 import 'sync_screen.dart';
 
 /// Countries offered at the first start and in Settings, in this order.
 const countries = ['CN', 'RU', 'KZ', 'DE', 'NL'];
 const countryFlags = {'CN': '🇨🇳', 'RU': '🇷🇺', 'KZ': '🇰🇿', 'DE': '🇩🇪', 'NL': '🇳🇱'};
 
-/// First start: language -> country -> app lock offer -> short guide.
+/// First start, kept short: language -> country -> monthly budget. On the phone the recording
+/// setup follows on top of the home screen (Shell). The app lock and the intro guide stay in
+/// Settings; a first run with more pages lost people before they reached the app.
 class OnboardingFlow extends StatefulWidget {
   const OnboardingFlow({super.key});
 
@@ -37,8 +41,11 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         currentLanguage = l;
       });
 
-  Future<void> _finish() async {
-    await context.read<AppState>().completeOnboarding(country: _country, lang: _lang);
+  /// [budgetMinor] null: no budget, only spending and income are counted.
+  Future<void> _finish(int? budgetMinor) async {
+    final state = context.read<AppState>();
+    state.captureIntroPending = !appIsDesktop;
+    await state.completeOnboarding(country: _country, lang: _lang, budgetMinor: budgetMinor, budgetOn: budgetMinor != null);
   }
 
   /// The computer: joins the phone's sync folder and opens with its data.
@@ -82,8 +89,13 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                   onPressed: () => restoreFromBackupFile(context),
                 ),
         ),
-      2 => _LockOfferPage(onBack: () => setState(() => _step = 1), onNext: () => setState(() => _step = 3)),
-      _ => GuideScreen(onFinish: _finish),
+      _ => _BudgetPage(
+          // A new page per country: its currency and starting amount.
+          key: ValueKey(_country),
+          country: _country,
+          onBack: () => setState(() => _step = 1),
+          onDone: _finish,
+        ),
     };
   }
 }
@@ -153,48 +165,39 @@ class _ChoicePage extends StatelessWidget {
 }
 
 
-/// First start, after the language: an offer to protect the app with a PIN (and the fingerprint);
-/// "Not now" leaves it off — it can be turned on later in Settings.
-class _LockOfferPage extends StatefulWidget {
+/// "How much to spend a month?": the figure behind "You can still spend today", prefilled with
+/// the country's usual amount, or no budget at all.
+class _BudgetPage extends StatefulWidget {
+  final String country;
   final VoidCallback onBack;
-  final VoidCallback onNext;
-  const _LockOfferPage({required this.onBack, required this.onNext});
+  final Future<void> Function(int? budgetMinor) onDone;
+  const _BudgetPage({super.key, required this.country, required this.onBack, required this.onDone});
 
   @override
-  State<_LockOfferPage> createState() => _LockOfferPageState();
+  State<_BudgetPage> createState() => _BudgetPageState();
 }
 
-class _LockOfferPageState extends State<_LockOfferPage> {
-  bool _bioAvailable = false;
-
-  @override
-  void initState() {
-    super.initState();
-    appLock.addListener(_changed);
-    appLock.biometricsAvailable().then((v) {
-      if (mounted) setState(() => _bioAvailable = v);
-    });
-  }
+class _BudgetPageState extends State<_BudgetPage> {
+  late final _amount = TextEditingController(text: '${Repository.countryPreset(widget.country).$3 ~/ 100}');
+  bool _busy = false;
 
   @override
   void dispose() {
-    appLock.removeListener(_changed);
+    _amount.dispose();
     super.dispose();
   }
 
-  void _changed() => setState(() {});
-
-  Future<void> _setPin() async {
-    final pin = await askNewPin(context);
-    if (pin == null) return;
-    await appLock.setPin(pin);
-    if (_bioAvailable) await appLock.setBiometrics(true);
+  Future<void> _done(bool withBudget) async {
+    final v = double.tryParse(_amount.text.replaceAll(RegExp(r'[s ]'), '').replaceAll(',', '.'));
+    if (withBudget && (v == null || v <= 0)) return;
+    setState(() => _busy = true);
+    await widget.onDone(withBudget ? (v! * 100).round() : null);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final on = appLock.enabled;
+    final currency = Repository.countryPreset(widget.country).$1;
     return Scaffold(
       appBar: AppBar(leading: BackButton(onPressed: widget.onBack)),
       body: SafeArea(
@@ -203,36 +206,22 @@ class _LockOfferPageState extends State<_LockOfferPage> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Text(tr('welcome'), style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.primary)),
             const SizedBox(height: 8),
-            Text(tr('lock_offer_t'), style: theme.textTheme.headlineSmall),
+            Text(tr('ux_budget_t'), style: theme.textTheme.headlineSmall),
             const SizedBox(height: 8),
-            Text(tr('lock_offer_b'), style: theme.textTheme.bodyMedium),
+            Text(tr('ux_budget_b'), style: theme.textTheme.bodyMedium),
             const SizedBox(height: 24),
-            if (on) ...[
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.lock_outline, color: theme.colorScheme.primary),
-                title: Text(tr('lock_offer_done')),
-              ),
-              if (_bioAvailable)
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: appLock.biometrics,
-                  onChanged: appLock.setBiometrics,
-                  title: Text(tr('lock_bio')),
-                ),
-            ],
+            TextField(
+              controller: _amount,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9s.,]'))],
+              style: theme.textTheme.headlineMedium,
+              decoration: InputDecoration(suffixText: currencySymbol(currency)),
+              onSubmitted: (_) => _done(true),
+            ),
             const Spacer(),
-            if (on)
-              FilledButton(onPressed: widget.onNext, child: Text(tr('next')))
-            else ...[
-              FilledButton.icon(
-                icon: const Icon(Icons.lock_outline),
-                label: Text(tr('lock_offer_yes')),
-                onPressed: _setPin,
-              ),
-              const SizedBox(height: 8),
-              TextButton(onPressed: widget.onNext, child: Text(tr('lock_offer_no'))),
-            ],
+            FilledButton(onPressed: _busy ? null : () => _done(true), child: Text(tr('next'))),
+            const SizedBox(height: 8),
+            TextButton(onPressed: _busy ? null : () => _done(false), child: Text(tr('ux_budget_none'))),
           ]),
         ),
       ),

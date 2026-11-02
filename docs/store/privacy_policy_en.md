@@ -4,7 +4,7 @@ _Effective [publication date]. Developer: [name], contact: [email]._
 
 ## In short
 
-All your financial data stays **on your phone only**, encrypted. The app has no server, no account, no ads, no analytics and no third-party SDKs. The developer never receives or sees your data.
+All your financial data stays **on your phone only**, encrypted. The app has no server, no account, no ads, no analytics and no crash reporting. The developer never receives or sees your data.
 
 ## What is processed
 
@@ -22,7 +22,19 @@ All your financial data stays **on your phone only**, encrypted. The app has no 
 
 ## What goes to the internet
 
-Only exchange rate requests to a public service (cdn.jsdelivr.net, currency-api.pages.dev), containing a currency code and a date — no amounts or other data. Nothing else is sent.
+The app connects only to these addresses:
+
+- **Exchange rates** — a public service (cdn.jsdelivr.net, fallback currency-api.pages.dev), only if you have operations or accounts in another currency. The request contains a currency code and a date. The service sees your IP address and the dates a rate is needed for; no amounts, purchases or accounts are sent.
+- **Your bank** (bunq, German banks via FinTS) — only when you download a statement yourself. The access key, or the login, PIN and TAN, go straight to the bank with nobody in between; the PIN is not saved.
+
+Every request is written to a log on the device: Settings → Privacy and internet. There you can also forbid the app to go online at all and compare the log with Android's own traffic counter for the app.
+
+Through other software:
+
+- **Sync and backup**: the app puts files encrypted with your password into a folder you chose; your cloud's app uploads them. The cloud sees file names, sizes and times, not the contents.
+- **Reading screenshots and receipt QR codes (Android)** is done on the phone by Google ML Kit through Google Play services; according to Google's documentation the image does not leave the device. Google Play services download the recognition model themselves. ML Kit's usage statistics upload to Google is switched off in the app.
+
+Nothing else is sent.
 
 ## Sharing
 

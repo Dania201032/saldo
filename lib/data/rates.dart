@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:sqflite_sqlcipher/sqflite.dart';
 
+import '../net/net_gate.dart';
+
 String dateKey(DateTime d) =>
     '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
@@ -12,10 +14,11 @@ String dateKey(DateTime d) =>
 /// Source: fawazahmed0/exchange-api (free, no key, daily history, 300+ currencies), served from
 /// jsDelivr with a Cloudflare mirror as fallback. Rates are "quote per 1 base".
 /// A manual rate set by the user overrides downloaded rates for every date.
+/// Requests go through [netGate]: logged for the user, none while the internet is switched off.
 class RatesService {
   final Database db;
   final http.Client _client;
-  RatesService(this.db, {http.Client? client}) : _client = client ?? http.Client();
+  RatesService(this.db, {http.Client? client}) : _client = netGate.client(NetPurpose.rates, inner: client);
 
   String _base = 'CNY';
 
@@ -111,7 +114,8 @@ class RatesService {
   /// other days fall back to the nearest known rate).
   Future<void> ensure(Iterable<DateTime> days, Set<String> currencies, {int maxRequests = 12}) async {
     final needed = currencies.where((c) => c != _base && !manual.containsKey(c)).toSet();
-    if (needed.isEmpty) return;
+    // Offline by choice: the saved and manual rates are used, nothing is asked for.
+    if (needed.isEmpty || netGate.off) return;
     final today = DateTime.now();
     final keys = <String>{};
     for (final d in days) {

@@ -279,6 +279,22 @@ class CaptureService {
   Future<void> openAccessibility() => _channel.invokeMethod('openAccessibility');
   Future<void> openNotificationAccess() => _channel.invokeMethod('openNotificationAccess');
   Future<void> openAppInfo() => _channel.invokeMethod('openAppInfo');
+
+  /// What Android itself counted for this app on the network since the phone was switched on
+  /// (every socket of the app, not only the requests in its own log); null where unknown.
+  Future<({int sent, int received, DateTime since})?> trafficStats() async {
+    try {
+      final m = Map<String, dynamic>.from(await _channel.invokeMethod('trafficStats'));
+      final tx = (m['tx'] as num).toInt(), rx = (m['rx'] as num).toInt();
+      // TrafficStats.UNSUPPORTED (-1): the phone doesn't tell.
+      if (tx < 0 || rx < 0) return null;
+      return (sent: tx, received: rx, since: DateTime.fromMillisecondsSinceEpoch((m['bootMs'] as num).toInt()));
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
   /// Asks for the permission to show notifications (Android 13+, iPhone); no dialog once answered.
   Future<void> requestPostNotifications() async {
     try {

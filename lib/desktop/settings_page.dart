@@ -16,6 +16,7 @@ import '../ui/settings_screen.dart' show CategoriesScreen, RatesScreen, accountD
 import '../ui/envelopes_screen.dart';
 import '../ui/net_worth_screen.dart';
 import '../ui/plus_screen.dart';
+import '../ui/privacy_screen.dart';
 import '../ui/statement_import_screen.dart';
 import '../ui/tax_screen.dart';
 import '../ui/sync_screen.dart';
@@ -304,6 +305,7 @@ class _DeskSettingsPageState extends State<DeskSettingsPage> {
       ], lead: tr('d_this_computer')),
       section('security', tr('d_security'), [
         row(tr('d_app_lock'), tr('d_app_lock_sub'), DeskButton(tr('d_open'), onTap: () => _push(const LockSettingsScreen()))),
+        row(tr('pv_title'), tr('pv_tile_sub'), DeskButton(tr('d_open'), onTap: () => _push(const PrivacyScreen()))),
       ]),
       section('keys', tr('d_keys'), [
         for (final (k, what) in [

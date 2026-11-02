@@ -60,14 +60,17 @@
   const st = {
     plan: PRICES[q.get('plan')] ? q.get('plan') : 'year',
     pay: CUR[q.get('pay')] ? q.get('pay') : null,
-    to: store.get('buyTo') === 'mail' ? 'mail' : 'tg',
+    to: store.get('buyTo', sessionStorage) === 'mail' ? 'mail' : 'tg',
   };
   // Same as aliAmount() in the bot: the fen are 01..99 from the order number.
   const fen = String((Number(code.slice(1)) % 99) + 1).padStart(2, '0');
   const sumOf = (plan, pay) => pay === 'ali' ? `${PRICES[plan].ali}.${fen} ¥` : `${PRICES[plan][pay]} ${CUR[pay]}`;
   const open = { stars: true, sbp: false, ali: false }; // SBP and Alipay open when their QR is on the site
   const qrImg = {};
-  $('#mail').value = store.get('buyMail') || '';
+  // The purchase draft lives only until the tab is closed (see privacy.html#cookies).
+  try { localStorage.removeItem('buyMail'); localStorage.removeItem('buyTo'); } catch { /* kept there before 2026-11 */ }
+  $('#mail').value = store.get('buyMail', sessionStorage) || '';
+  $('#consent').checked = store.get('buyConsent', sessionStorage) === '1';
 
   function defaultPay() {
     const want = { ru: 'sbp', kk: 'sbp', zh: 'ali' }[LANGS[li]] || 'stars';
@@ -100,6 +103,10 @@
     $('#s-stars').hidden = qr;
     $('#s-to').hidden = !qr;
     $('#s-qr').hidden = !qr;
+    const agreed = $('#consent').checked;
+    $('#starsBtn').classList.toggle('off', !agreed);
+    $('#starsBtn').setAttribute('aria-disabled', String(!agreed));
+    $('#starsNeed').hidden = agreed;
     if (!qr) {
       $('#starsBtn').href = `${BOT}?start=${plan}_stars_${botLang()}`;
       $('#starsLbl').textContent = tr('b_stars_btn', [amount]);
@@ -110,8 +117,9 @@
     const mailOk = mailRe.test(mail);
     $('#mailField').hidden = to !== 'mail';
     $('#mail').classList.toggle('bad', to === 'mail' && mail !== '' && !mailOk);
-    const ready = to === 'tg' || mailOk;
+    const ready = agreed && (to === 'tg' || mailOk);
     $('#needMail').hidden = ready;
+    $('#needMail').textContent = tr(agreed ? 'b_need_mail' : 'b_need_consent');
     $('#paycard').classList.toggle('locked', !ready);
 
     const box = $('#qr');
@@ -147,11 +155,13 @@
   }));
   $$('#s-to [data-to]').forEach((b) => b.addEventListener('click', () => {
     st.to = b.dataset.to;
-    store.set('buyTo', st.to);
+    store.set('buyTo', st.to, sessionStorage);
     render();
     if (st.to === 'mail') $('#mail').focus();
   }));
-  $('#mail').addEventListener('input', () => { store.set('buyMail', $('#mail').value.trim()); render(); });
+  $('#mail').addEventListener('input', () => { store.set('buyMail', $('#mail').value.trim(), sessionStorage); render(); });
+  $('#consent').addEventListener('change', () => { store.set('buyConsent', $('#consent').checked ? '1' : '', sessionStorage); render(); });
+  $('#starsBtn').addEventListener('click', (e) => { if (!$('#consent').checked) e.preventDefault(); });
 
   $('#copy').addEventListener('click', async () => {
     const text = $('#comment').textContent;
@@ -179,6 +189,7 @@
     root.lang = lang;
     sel.value = lang;
     $$('[data-i18n]').forEach((el) => { el.textContent = tr(el.dataset.i18n); });
+    $$('[data-i18n-html]').forEach((el) => { el.innerHTML = tr(el.dataset.i18nHtml); });
     $$('[data-i18n-title]').forEach((el) => { el.title = tr(el.dataset.i18nTitle); });
     document.title = tr('b_page');
     render();
