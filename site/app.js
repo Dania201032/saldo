@@ -260,7 +260,7 @@
   const CUR = { sbp: '₽', ali: '¥', stars: '⭐' };
   let per = 'year';
   function renderPrice() {
-    const main = LANGS[li] === 'zh' ? 'ali' : 'sbp';
+    const main = { zh: 'ali', ko: 'stars' }[LANGS[li]] || 'sbp';
     const amount = PRICES[per][main];
     countTo($('#amt'), Number($('#amt').textContent.replace(/\D/g, '')) || amount, amount, '');
     $('#amtl').textContent = tr(per === 'year' ? 'pr_year' : 'pr_month', [CUR[main]]);
