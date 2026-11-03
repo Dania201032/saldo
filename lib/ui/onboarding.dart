@@ -11,8 +11,8 @@ import 'data_screens.dart';
 import 'sync_screen.dart';
 
 /// Countries offered at the first start and in Settings, in this order.
-const countries = ['CN', 'RU', 'KZ', 'DE', 'NL'];
-const countryFlags = {'CN': '🇨🇳', 'RU': '🇷🇺', 'KZ': '🇰🇿', 'DE': '🇩🇪', 'NL': '🇳🇱'};
+const countries = ['CN', 'RU', 'KZ', 'DE', 'NL', 'KR'];
+const countryFlags = {'CN': '🇨🇳', 'RU': '🇷🇺', 'KZ': '🇰🇿', 'DE': '🇩🇪', 'NL': '🇳🇱', 'KR': '🇰🇷'};
 
 /// First start, kept short: language -> country -> monthly budget. On the phone the recording
 /// setup follows on top of the home screen (Shell). The app lock and the intro guide stay in
@@ -138,7 +138,7 @@ class _ChoicePage extends StatelessWidget {
               Text(subtitle!, style: theme.textTheme.bodyMedium),
             ],
             const SizedBox(height: 24),
-            // Scrolls on small screens: five countries, six languages.
+            // Scrolls on small screens: six countries, seven languages.
             Expanded(
               child: ListView(children: [
                 for (final (value, label) in options)

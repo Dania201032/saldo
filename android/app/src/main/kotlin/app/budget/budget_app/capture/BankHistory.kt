@@ -3,7 +3,7 @@ package app.budget.budget_app.capture
 import java.util.Calendar
 
 /**
- * The operations history screen of a Russian/Kazakh bank app, read like Alipay's Bills: operations
+ * The operations history screen of a bank app (Russian, Kazakh, German, Dutch, Korean), read like Alipay's Bills: operations
  * that came without a notification (or before capture was on) are added when the user opens it.
  *
  * Bank apps differ, but every history list is days and rows under them:
@@ -37,8 +37,11 @@ object BankHistory {
     private val DAY_MONTH_RE = Regex("(?<!\\d)(\\d{1,2})\\.?\\s+$MONTH_WORD(?:\\s+(\\d{4}))?", RegexOption.IGNORE_CASE)
     private val MONTH_DAY_RE = Regex("(?<![а-яёa-zäöü])$MONTH_WORD\\s+(\\d{1,2})(?!\\d)(?:,?\\s+(\\d{4}))?", RegexOption.IGNORE_CASE)
     private val NUMERIC_DATE_RE = Regex("^(\\d{1,2})[./-](\\d{1,2})(?:[./-](\\d{2,4}))?(?:,?\\s+(\\d{1,2}):(\\d{2}))?$")
-    private val TODAY_RE = Regex("^(сегодня|today|бүгін|heute|vandaag)(?![а-яёa-z])", RegexOption.IGNORE_CASE)
-    private val YESTERDAY_RE = Regex("^(вчера|yesterday|кеше|gestern|gisteren)(?![а-яёa-z])", RegexOption.IGNORE_CASE)
+    private val TODAY_RE = Regex("^(сегодня|today|бүгін|heute|vandaag|오늘)(?![а-яёa-z])", RegexOption.IGNORE_CASE)
+    private val YESTERDAY_RE = Regex("^(вчера|yesterday|кеше|gestern|gisteren|어제)(?![а-яёa-z])", RegexOption.IGNORE_CASE)
+    // Korean: "10월 30일 (목)", "2026년 10월 30일", "2026.10.30", "10.30" (year, month, day).
+    private val KO_DATE_RE = Regex("^(?:(\\d{4})년\\s*)?(\\d{1,2})월\\s*(\\d{1,2})일")
+    private val KO_NUMERIC_RE = Regex("^(?:(\\d{4})[./-]\\s?)?(\\d{1,2})[./-]\\s?(\\d{1,2})\\.?(?:\\s*\\([월화수목금토일]\\))?$")
     private val TIME_RE = Regex("(?<!\\d)([01]?\\d|2[0-3]):([0-5]\\d)(?!\\d)")
 
     private const val CUR = "₽|руб\\.?|р\\.|р|RUB|₸|тг|KZT|\\$|USD|€|EUR|¥|CNY"
@@ -49,19 +52,20 @@ object BankHistory {
 
     private val FAILED_RE = Regex(
         "отклон|отмен[её]н|не выполн|ошибка|отказ|declined|failed|cancel|abgelehnt|storniert|fehlgeschlagen|" +
-            "geweigerd|mislukt|geannuleerd|afgewezen",
+            "geweigerd|mislukt|geannuleerd|afgewezen|거절|실패|취소",
         RegexOption.IGNORE_CASE,
     )
     private val INCOME_RE = Regex(
         "зачислен|поступлен|пополнен|входящ|возврат|кешб[эе]к|зарплат|перевод от|получен|түсті|толықтыр|refund|received|top[- ]?up|" +
-            "gutschrift|eingang|erhalten|erstattung|gehalt|bijschrijving|ontvangen|terugbetaling|storting|salaris",
+            "gutschrift|eingang|erhalten|erstattung|gehalt|bijschrijving|ontvangen|terugbetaling|storting|salaris|" +
+            "입금|받은|환불|충전|급여|이자",
         RegexOption.IGNORE_CASE,
     )
     private val NOT_MERCHANT_RE = Regex(
         "^(выполнен[оа]?|исполнен[оа]?|успешно|в обработке|обрабатывается|ожидает|списано|зачислено|" +
             "показать (все|ещё|еще)|все операции|история|операции|фильтр|поиск|done|pending|completed|" +
             "vorgemerkt|gebucht|ausstehend|in bearbeitung|alle umsätze|umsätze|suche|in behandeling|verwerkt|" +
-            "transacties|zoeken|bij|af)$|" +
+            "transacties|zoeken|bij|af|완료|승인|전체|검색|필터|거래내역|내역)$|" +
             "^[•*·.\\s]*\\d{4}$|(карта|card|karte|kaart|счёт|счет|мир|visa|mastercard)\\s*[•*·.]+\\s*\\d{4}",
         RegexOption.IGNORE_CASE,
     )
@@ -70,7 +74,8 @@ object BankHistory {
     private val GENERIC_RE = Regex(
         "((входящие|исходящие)\\s+)?(переводы?|пополнения?|зачисления?|поступления?|снятие наличных|покупки|оплата услуг|прочее|другое|" +
             "аударымдар|transfers?|top-?ups?|incoming|outgoing|kartenzahlung|lastschrift|überweisung|gutschrift|dauerauftrag|" +
-            "betaling|pinbetaling|overboeking|incasso|bijschrijving|afschrijving|ideal|betaalverzoek|card payment|direct debit)",
+            "betaling|pinbetaling|overboeking|incasso|bijschrijving|afschrijving|ideal|betaalverzoek|card payment|direct debit|" +
+            "이체|송금|입금|출금|결제|카드 ?결제|체크카드|자동이체)",
         RegexOption.IGNORE_CASE,
     )
 
@@ -95,7 +100,8 @@ object BankHistory {
 
     private fun rows(bank: BankParsers.Bank, pieces: List<String>, now: Long): List<CapturedPayment> {
         val eu = bank.key in EuBankParsers.KEYS
-        val tokens = pieces.map { tokenOf(it, now, eu) }
+        val kr = bank.key in KrBankParsers.KEYS
+        val tokens = pieces.map { tokenOf(it, now, eu, kr) }
         val firstDay = tokens.indexOfFirst { it.kind == Kind.DAY }
         if (firstDay < 0) return emptyList()
         val list = tokens.drop(firstDay)
@@ -175,7 +181,23 @@ object BankHistory {
         return out
     }
 
-    private fun tokenOf(s: String, now: Long, eu: Boolean): Token {
+    private fun tokenOf(s: String, now: Long, eu: Boolean, kr: Boolean): Token {
+        // Korean apps: "-12,000원", "+50,000원", "4,500원"; days "10월 30일 (목)", "2026.10.30".
+        if (kr) KrBankParsers.AMOUNT_RE.matchEntire(s)?.let { m ->
+            val cur = m.groupValues[2].ifEmpty { m.groupValues[4] }
+            if (cur.isEmpty()) return Token(Kind.TEXT, s)
+            val minor = KrBankParsers.minorOf(m.groupValues[3]) ?: return Token(Kind.TEXT, s)
+            val sign = when (m.groupValues[1].trim()) { "+" -> 1; "" -> 0; else -> -1 }
+            return Token(Kind.AMOUNT, s, sign = sign, amountMinor = minor, currency = KrBankParsers.currencyOf(cur))
+        }
+        if (kr && s.length <= 40) dayOfKo(s, now)?.let { dayStart ->
+            val tm = TIME_RE.find(s)
+            return if (tm != null) {
+                Token(Kind.TIME, s, dayStart = dayStart, minutes = tm.groupValues[1].toInt() * 60 + tm.groupValues[2].toInt())
+            } else {
+                Token(Kind.DAY, s, dayStart = dayStart)
+            }
+        }
         // German/Dutch apps: "-12,34 €", "€ 12,34", "- € 1.234,56", "+50,00 EUR".
         if (eu) EuBankParsers.AMOUNT_RE.matchEntire(s)?.let { m ->
             val cur = m.groupValues[2].ifEmpty { m.groupValues[5] }
@@ -216,6 +238,22 @@ object BankHistory {
         val w = word.lowercase()
         MONTHS.forEachIndexed { i, names -> if (w in names) return i + 1 }
         return null
+    }
+
+    /** A Korean day header ("오늘", "10월 30일 (목)", "2026.10.30") as local midnight, or null. */
+    fun dayOfKo(s: String, now: Long): Long? {
+        val t = s.trim()
+        if (TODAY_RE.containsMatchIn(t) || YESTERDAY_RE.containsMatchIn(t)) return dayOf(t, now)
+        val m = KO_DATE_RE.find(t) ?: KO_NUMERIC_RE.find(t) ?: return null
+        val y = m.groupValues[1].toIntOrNull() ?: 0
+        val mo = m.groupValues[2].toInt()
+        val d = m.groupValues[3].toInt()
+        if (d !in 1..31 || mo !in 1..12) return null
+        fun at(year: Int) = Calendar.getInstance().apply { clear(); set(year, mo - 1, d) }.timeInMillis
+        if (y != 0) return at(y)
+        val year = Calendar.getInstance().apply { timeInMillis = now }.get(Calendar.YEAR)
+        // "12월 30일" seen in January is last year's.
+        return if (at(year) > startOfDay(now)) at(year - 1) else at(year)
     }
 
     /** Local midnight of a day header ("Сегодня", "13 октября", "Пн, 13 окт.", "13.10.2026"), or null. */

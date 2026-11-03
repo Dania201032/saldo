@@ -702,6 +702,7 @@ const _deNl = <String, List<String>>{
   'country_KZ': ['Kasachstan', 'Kazachstan'],
   'country_DE': ['Deutschland', 'Duitsland'],
   'country_NL': ['Niederlande', 'Nederland'],
+  'country_KR': ['Südkorea', 'Zuid-Korea'],
   'choose_country_sub': [
     'Davon hängen Standardwährung und Konten ab. Sie können es jederzeit in den Einstellungen ändern.',
     'Dit bepaalt de standaardvaluta en rekeningen. U kunt het altijd wijzigen in Instellingen.',

@@ -50,6 +50,9 @@ class RunwayConfig {
   final int reserveMinor;
   /// Regular payments and incomes (rent, stipend) count as planned items.
   final bool useRecurring;
+
+  /// Goals with a deadline count as a purchase on that day (the money for it leaves then).
+  final bool useGoals;
   final List<PlannedItem> planned;
   final int horizonMonths;
 
@@ -70,6 +73,7 @@ class RunwayConfig {
     this.reserveMinor = 0,
     this.useRecurring = true,
     this.planned = const [],
+    this.useGoals = true,
     this.horizonMonths = 12,
     this.targetDate,
   });
@@ -88,6 +92,7 @@ class RunwayConfig {
     int? reserveMinor,
     bool? useRecurring,
     List<PlannedItem>? planned,
+    bool? useGoals,
     int? horizonMonths,
     DateTime? Function()? targetDate,
   }) =>
@@ -105,6 +110,7 @@ class RunwayConfig {
         reserveMinor: reserveMinor ?? this.reserveMinor,
         useRecurring: useRecurring ?? this.useRecurring,
         planned: planned ?? this.planned,
+        useGoals: useGoals ?? this.useGoals,
         horizonMonths: horizonMonths ?? this.horizonMonths,
         targetDate: targetDate != null ? targetDate() : this.targetDate,
       );
@@ -123,6 +129,7 @@ class RunwayConfig {
         'reserve': reserveMinor,
         'recurring': useRecurring,
         'planned': [for (final p in planned) p.toJson()],
+        'goalBuys': useGoals,
         'horizon': horizonMonths,
         'target': targetDate?.millisecondsSinceEpoch,
       });
@@ -145,6 +152,7 @@ class RunwayConfig {
         reserveMinor: (j['reserve'] as num?)?.toInt() ?? 0,
         useRecurring: j['recurring'] != false,
         planned: [for (final p in (j['planned'] as List? ?? const [])) PlannedItem.fromJson(p as Map<String, dynamic>)],
+        useGoals: j['goalBuys'] != false,
         horizonMonths: (j['horizon'] as num?)?.toInt() ?? 12,
         targetDate: j['target'] == null ? null : DateTime.fromMillisecondsSinceEpoch((j['target'] as num).toInt()),
       );

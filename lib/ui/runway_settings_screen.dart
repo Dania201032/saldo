@@ -9,6 +9,7 @@ import '../domain/runway.dart';
 import '../l10n/strings.dart';
 import '../state/app_state.dart';
 import 'ledger.dart';
+import 'money_screen.dart' show editGoal;
 
 /// Every input of the "how long will the money last" forecast, saved as you change it.
 class RunwaySettingsScreen extends StatelessWidget {
@@ -226,6 +227,25 @@ class RunwaySettingsScreen extends StatelessWidget {
           subtitle: Text(tr('rs_recurring_sub', [context.watch<AppState>().recurring.length])),
           onChanged: (v) => save(c.copyWith(useRecurring: v)),
         ),
+        // Goals with a deadline are the same kind of plan: the purchase on that day.
+        SwitchListTile(
+          value: c.useGoals,
+          title: Text(tr('rs_goals')),
+          subtitle: Text(tr('rs_goals_sub')),
+          onChanged: (v) => save(c.copyWith(useGoals: v)),
+        ),
+        if (c.useGoals)
+          for (final p in state.goalsPlanned(c))
+            ListTile(
+              leading: const Icon(Icons.flag_outlined),
+              title: Text(p.name),
+              subtitle: Text('${tr('rs_goal_item')} · ${DateFormat.yMMMd(intlLocale).format(p.date)}'),
+              trailing: Text(formatMoney(p.amountMinor, cur, signed: true)),
+              onTap: () {
+                final g = state.goals.where((g) => g.name == p.name && g.deadline == p.date).firstOrNull;
+                if (g != null) editGoal(context, goal: g);
+              },
+            ),
         for (var i = 0; i < c.planned.length; i++)
           ListTile(
             leading: Icon(c.planned[i].amountMinor >= 0 ? Icons.arrow_downward : Icons.arrow_upward,
@@ -234,6 +254,19 @@ class RunwaySettingsScreen extends StatelessWidget {
             subtitle: Text(DateFormat.yMMMd(intlLocale).format(c.planned[i].date)),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
               Text(formatMoney(c.planned[i].amountMinor, cur, signed: true)),
+              // A planned purchase can become a goal: the app then helps to save for it.
+              if (c.planned[i].amountMinor < 0)
+                IconButton(
+                  icon: const Icon(Icons.savings_outlined),
+                  tooltip: tr('rs_save_for'),
+                  onPressed: () async {
+                    final name = c.planned[i].name;
+                    await state.saveForPlanned(c.planned[i]);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('rs_saved_for', [name]))));
+                    }
+                  },
+                ),
               IconButton(
                 icon: const Icon(Icons.delete_outline),
                 onPressed: () => save(c.copyWith(planned: [...c.planned]..removeAt(i))),

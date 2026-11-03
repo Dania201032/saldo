@@ -20,7 +20,7 @@ void main() {
         'other', 'transfers_out', 'stipend', 'salary', 'transfers_in', 'other_income']) {
       expect(hasTr('cat_$k'), isTrue, reason: k);
     }
-    for (final c in ['CN', 'RU', 'KZ', 'DE', 'NL']) {
+    for (final c in ['CN', 'RU', 'KZ', 'DE', 'NL', 'KR']) {
       expect(hasTr('country_$c'), isTrue);
     }
     for (final p in ['day', 'week', 'month', 'year']) {
@@ -50,6 +50,7 @@ void main() {
       ('kk', 'Сізге қарыз: 5 ¥'),
       ('de', 'Man schuldet Ihnen: 5 ¥'),
       ('nl', 'Men is u verschuldigd: 5 ¥'),
+      ('ko', '받을 돈: 5 ¥'),
     ]) {
       currentLanguage = lang;
       expect(tr('owed_to_you', ['5 ¥']), expected);

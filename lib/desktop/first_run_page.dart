@@ -66,6 +66,15 @@ String bankType(String name) => switch (name.toLowerCase().replaceAll(RegExp(r'[
       'n26' => 'n26',
       'revolut' => 'revolut',
       'paypal' => 'paypal',
+      '토스뱅크' || 'tossbank' => 'tossbank',
+      '토스' || 'toss' => 'toss',
+      '카카오뱅크' || 'kakaobank' => 'kakaobank',
+      '카카오페이' || 'kakaopay' => 'kakaopay',
+      '하나은행' || 'hanabank' || 'hana' => 'hana',
+      '신한은행' || 'shinhan' || 'shinhanbank' => 'shinhan',
+      'kb국민은행' || 'kb' || 'kb국민' || '국민은행' => 'kb',
+      '우리은행' || 'woori' || 'wooribank' => 'woori',
+      'nh농협' || '농협' || 'nh' => 'nh',
       _ => 'bank',
     };
 

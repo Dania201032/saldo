@@ -3,6 +3,27 @@ part of 'strings.dart';
 /// The shared budget's texts (lib/household/, lib/ui/household_screen.dart) and later additions
 /// in all six languages at once: [ru, en, zh, kk, de, nl].
 const _hh = <String, List<String>>{
+  // --- Goals in the forecast (lib/ui/runway_settings_screen.dart) ---
+  'rs_goals': ['Учитывать покупки по целям', 'Count goal purchases', '计入目标购买', 'Мақсат бойынша сатып алуларды есептеу',
+      'Käufe aus Zielen einrechnen', 'Aankopen van doelen meetellen'],
+  'rs_goals_sub': [
+    'Цель со сроком — это покупка в этот день: прогноз её учитывает',
+    'A goal with a deadline is a purchase on that day: the forecast counts it',
+    '有截止日期的目标即当天的一笔购买：预测会计入',
+    'Мерзімі бар мақсат — сол күнгі сатып алу: болжам оны есептейді',
+    'Ein Ziel mit Termin ist ein Kauf an diesem Tag: die Prognose rechnet ihn ein',
+    'Een doel met een datum is een aankoop op die dag: de prognose telt hem mee',
+  ],
+  'rs_goal_item': ['цель', 'goal', '目标', 'мақсат', 'Ziel', 'doel'],
+  'rs_save_for': ['Копить на это', 'Save for this', '为此储蓄', 'Осыған жинау', 'Dafür sparen', 'Hiervoor sparen'],
+  'rs_saved_for': [
+    'Цель «{0}» создана — она в «Деньгах», а прогноз учитывает её сам',
+    'Goal "{0}" created — it is in Money, and the forecast counts it by itself',
+    '已创建目标“{0}”——在“资金”中，预测会自动计入',
+    '«{0}» мақсаты құрылды — ол «Ақша» бөлімінде, болжам оны өзі есептейді',
+    'Ziel „{0}“ angelegt – es steht unter Geld, die Prognose rechnet es selbst ein',
+    'Doel "{0}" aangemaakt – het staat bij Geld, de prognose telt het vanzelf mee',
+  ],
   // --- Automatic recording: the optional screen reading, Android's lock on apps from a file ---
   'capture_optional': ['необязательно', 'optional', '可选', 'міндетті емес', 'optional', 'optioneel'],
   'capture_step1_sub_optional': [

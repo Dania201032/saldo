@@ -67,7 +67,7 @@ const countryInfos = <CountryInfo>[
       dateStyle: 'dmy/', numberStyle: 'comma', vat: 18, vatReduced: 5),
   CountryInfo('JP', 'JPY', ['MUFG', 'SMBC', 'Mizuho', 'PayPay'],
       dateStyle: 'ymd/', numberStyle: 'comma', weekStartsSunday: true, vat: 10, vatReduced: 8),
-  CountryInfo('KR', 'KRW', ['KB', 'Shinhan', 'KakaoPay', 'Toss'],
+  CountryInfo('KR', 'KRW', ['토스뱅크', '카카오뱅크', '하나은행', '신한은행', 'KB국민은행', '우리은행', 'NH농협', '카카오페이'],
       dateStyle: 'ymd.', numberStyle: 'comma', weekStartsSunday: true, vat: 10, vatReduced: 10),
   CountryInfo('UZ', 'UZS', ['Kapitalbank', 'Uzum', 'Click', 'Payme'], vat: 12, vatReduced: 12),
   CountryInfo('AM', 'AMD', ['Ameriabank', 'Ardshinbank'], vat: 20, vatReduced: 20),

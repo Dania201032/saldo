@@ -32,6 +32,7 @@ object WidgetPreviews {
         Lang("kk", "ҚАЗАН", "≈ 1 ай 25 күн", listOf("Тамақ", "Сусындар", "Көлік", "Сатып алулар")),
         Lang("de", "OKTOBER", "≈ 1 Mon. 25 T.", listOf("Essen", "Getränke", "Verkehr", "Einkäufe")),
         Lang("nl", "OKTOBER", "≈ 1 mnd 25 d", listOf("Eten", "Drinken", "Vervoer", "Winkelen")),
+        Lang("ko", "10월", "≈ 1개월 25일", listOf("식비", "음료", "교통", "쇼핑")),
     )
 
     private fun demo(lang: Lang): JSONObject {

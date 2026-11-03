@@ -138,6 +138,10 @@ void main() {
       expect(parseAmount('1.234'), 123400);
       expect(parseAmount('42,5'), 4250);
       expect(parseAmount('abc'), isNull);
+      // Won and yen have no decimals but are kept in hundredths like every currency.
+      expect(parseAmount('12,000', digits: 0), 1200000);
+      expect(parseAmount('-₩3,500', digits: 0), -350000);
+      expect(parseAmount('1250', digits: 0), 125000);
     });
 
     test('dates', () {

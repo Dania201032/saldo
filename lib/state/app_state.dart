@@ -720,7 +720,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  static const countryCurrency = {'CN': 'CNY', 'RU': 'RUB', 'KZ': 'KZT', 'DE': 'EUR', 'NL': 'EUR'};
+  static const countryCurrency = {'CN': 'CNY', 'RU': 'RUB', 'KZ': 'KZT', 'DE': 'EUR', 'NL': 'EUR', 'KR': 'KRW'};
 
   // --- Transactions ---
 
@@ -1409,12 +1409,37 @@ class AppState extends ChangeNotifier {
       IncomeMode.custom => c.customIncomePerMonthMinor * 12 / 365,
     };
     return computeRunway(
-      config: c.useRecurring ? c.copyWith(planned: [...c.planned, ...recurringPlanned(c.horizonMonths)]) : c,
+      config: c.copyWith(planned: [
+        ...c.planned,
+        if (c.useRecurring) ...recurringPlanned(c.horizonMonths),
+        if (c.useGoals) ...goalsPlanned(c),
+      ]),
       startMinor: runwayStart(c),
       baseSpendPerDay: spend,
       baseIncomePerDay: income,
       now: now,
     );
+  }
+
+  /// Goals with a deadline still ahead, as the purchase on that day in the base currency. When the
+  /// money already set aside counts as available ([RunwayConfig.includeGoalSavings]) the whole
+  /// price leaves on that day; otherwise only the part not yet saved does.
+  List<PlannedItem> goalsPlanned(RunwayConfig c) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return [
+      for (final g in goals)
+        if (g.deadline != null && !g.deadline!.isBefore(today) && g.savedMinor < g.targetMinor)
+          if (toBaseAmount(c.includeGoalSavings ? g.targetMinor : g.targetMinor - g.savedMinor, g.currency, now) case final m?)
+            PlannedItem(name: g.name, amountMinor: -m, date: g.deadline!),
+    ];
+  }
+
+  /// A planned expense becomes a goal to save for: same name, price and date.
+  Future<void> saveForPlanned(PlannedItem p) async {
+    await addGoal(name: p.name, targetMinor: -p.amountMinor, savedMinor: 0, deadline: p.date, reserve: true);
+    final c = runwayConfig;
+    await saveRunwayConfig(c.copyWith(planned: [for (final x in c.planned) if (!identical(x, p)) x]));
   }
 
   /// The regular payments and incomes of the next [months] as planned items in the base currency.

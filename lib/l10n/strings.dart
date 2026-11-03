@@ -1,5 +1,6 @@
-/// UI strings: [ru, en, zh, kk] here, [de, nl] in strings_eu.dart. Placeholders: {0}, {1}…
-/// Kazakh, Chinese, German and Dutch were written by the developer; have a native speaker review before release.
+/// UI strings: [ru, en, zh, kk] here, [de, nl] in strings_eu.dart, Korean by key in strings_ko*.dart.
+/// Placeholders: {0}, {1}…
+/// Kazakh, Chinese, German, Dutch and Korean were written by the developer; have a native speaker review before release.
 library;
 
 part 'strings_desk.dart';
@@ -14,8 +15,18 @@ part 'strings_eu.dart';
 part 'strings_hh.dart';
 part 'strings_ux.dart';
 part 'strings_privacy.dart';
+part 'strings_ko.dart';
+part 'strings_ko_a.dart';
+part 'strings_ko_b.dart';
+part 'strings_ko_c.dart';
+part 'strings_ko_d.dart';
+part 'strings_ko_e.dart';
+part 'strings_ko_f.dart';
+part 'strings_ko_g.dart';
+part 'strings_ko_h.dart';
+part 'strings_ko_i.dart';
 
-const supportedLanguages = ['ru', 'en', 'zh', 'kk', 'de', 'nl'];
+const supportedLanguages = ['ru', 'en', 'zh', 'kk', 'de', 'nl', 'ko'];
 
 const languageNames = {
   'ru': 'Русский',
@@ -24,6 +35,7 @@ const languageNames = {
   'kk': 'Қазақша',
   'de': 'Deutsch',
   'nl': 'Nederlands',
+  'ko': '한국어',
 };
 
 const _s = <String, List<String>>{
@@ -586,6 +598,7 @@ const _s = <String, List<String>>{
   'country_KZ': ['Казахстан', 'Kazakhstan', '哈萨克斯坦', 'Қазақстан'],
   'country_DE': ['Германия', 'Germany', '德国', 'Германия'],
   'country_NL': ['Нидерланды', 'Netherlands', '荷兰', 'Нидерланд'],
+  'country_KR': ['Южная Корея', 'South Korea', '韩国', 'Оңтүстік Корея'],
 
   // --- Rates & accounts screens ---
   'rates_explain': [
@@ -1120,23 +1133,27 @@ String tr(String key, [List<Object?> args = const []]) {
   final desk = _desk[key];
   final list = _s[key] ?? _hh[key] ?? _ux[key] ?? _privacy[key];
   if (list == null && desk == null) return key;
-  var s = desk != null
-      ? desk[i < desk.length ? i : 1]
-      : i < list!.length
-          ? list[i]
-          : (_deNl[key]?[i - list.length] ?? list[1]);
+  var s = _lang == 'ko' && _ko.containsKey(key)
+      ? _ko[key]!
+      : desk != null
+          ? desk[i < desk.length ? i : 1]
+          : i < list!.length
+              ? list[i]
+              : (_deNl[key]?[i - list.length] ?? list[1]);
   for (var i = 0; i < args.length; i++) {
     s = s.replaceAll('{$i}', '${args[i]}');
   }
   return s;
 }
 
+/// The key has all six table languages and Korean.
 bool hasTr(String key) =>
-    (_desk[key]?.length ?? 0) == supportedLanguages.length ||
-    (_hh[key]?.length ?? 0) == supportedLanguages.length ||
-    (_ux[key]?.length ?? 0) == supportedLanguages.length ||
-    (_privacy[key]?.length ?? 0) == supportedLanguages.length ||
-    (_s.containsKey(key) && _deNl.containsKey(key));
+    ((_desk[key]?.length ?? 0) == 6 ||
+        (_hh[key]?.length ?? 0) == 6 ||
+        (_ux[key]?.length ?? 0) == 6 ||
+        (_privacy[key]?.length ?? 0) == 6 ||
+        (_s.containsKey(key) && _deNl.containsKey(key))) &&
+    _ko.containsKey(key);
 
 /// Locale for intl number/date formatting.
 String get intlLocale => _lang;

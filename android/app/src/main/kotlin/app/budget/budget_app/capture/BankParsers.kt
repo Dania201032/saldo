@@ -2,7 +2,7 @@ package app.budget.budget_app.capture
 
 /**
  * Russian and Kazakh bank notifications (app pushes and SMS), independent of the app's country/language;
- * German and Dutch banks and Google Wallet are read by [EuBankParsers].
+ * German and Dutch banks and Google Wallet are read by [EuBankParsers], Korean ones by [KrBankParsers].
  *
  * Formats differ between banks and change often, so this is a generic parser: it finds the operation
  * amount (skipping "Баланс/Доступно/Остаток" amounts), the direction from keywords and the merchant
@@ -67,6 +67,7 @@ object BankParsers {
     fun bankFor(pkg: String, title: String): Bank? {
         BY_PACKAGE[pkg]?.let { return it }
         EuBankParsers.bankFor(pkg)?.let { return it }
+        KrBankParsers.bankFor(pkg)?.let { return it }
         if (pkg in SMS_APPS) {
             return BY_SENDER.firstOrNull { it.first.containsMatchIn(title.trim()) }?.second ?: Bank("sms", "SMS")
         }
@@ -154,6 +155,11 @@ object BankParsers {
         val bank = bankFor(pkg, title) ?: return null
         // German and Dutch banks write amounts and operations their own way.
         if (bank.key in EuBankParsers.KEYS && pkg !in SMS_APPS) return EuBankParsers.classify(bank, title, text, now)
+        // Korean banks and cards (their SMS come from numbers, so the text names the bank).
+        if (pkg in SMS_APPS && KrBankParsers.isKoreanSms(text)) {
+            return KrBankParsers.classify(KrBankParsers.bankOfSms(text), title, text, now, sms = true)
+        }
+        if (bank.key in KrBankParsers.KEYS && pkg !in SMS_APPS) return KrBankParsers.classify(bank, title, text, now, sms = false)
         val sms = bank.key == "sms" || pkg in SMS_APPS
         fun clean(s: String) = s.replace('\n', ' ').replace(Regex("\\s+"), " ").trim()
         // A push may carry the operation in its title ("Списание 450 ₽"); an SMS title is only the sender.

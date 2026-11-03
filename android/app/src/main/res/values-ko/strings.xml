@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Saldo</string>
+    <string name="accessibility_label">Saldo: 자동 기록</string>
+    <string name="listener_label">Saldo: 결제 알림</string>
+    <string name="accessibility_description">지출 자동 기록: 앱은 Alipay, WeChat, 은행 앱의 결제 결과 화면과 거래 목록(금액, 날짜, 상대)만 읽고 거래를 휴대폰에 저장해요. 채팅, 비밀번호, 다른 앱은 읽지 않고, 대신 누르는 것도 없으며, 인터넷으로 보내는 것도 없어요.</string>
+    <!-- Home-screen widgets -->
+    <string name="widget_calendar_name">월 달력</string>
+    <string name="widget_calendar_desc">이번 달의 날짜: 한도 안인지 초과인지, 남은 예산</string>
+    <string name="widget_summary_name">요약</string>
+    <string name="widget_summary_desc">예산 중 지출, 남은 돈, 하루, 페이스</string>
+    <string name="widget_today_name">오늘 남은 돈</string>
+    <string name="widget_today_desc">오늘 더 쓸 수 있는 돈</string>
+    <string name="widget_runway_name">버티는 날</string>
+    <string name="widget_runway_desc">지금 지출대로면 돈이 버티는 날짜</string>
+    <string name="widget_quick_name">빠른 추가</string>
+    <string name="widget_quick_desc">자주 쓰는 카테고리로 한 번에 거래 추가</string>
+    <string name="widget_over">오늘 초과</string>
+    <string name="widget_open_app">앱 열기</string>
+    <string name="widget_budget_off">예산이 꺼져 있어요</string>
+    <string name="widget_of">/</string>
+    <string name="widget_spent">지출</string>
+    <string name="widget_left">남음</string>
+    <string name="widget_per_day">하루</string>
+    <string name="widget_pace">페이스</string>
+    <string name="widget_income">수입</string>
+    <string name="widget_record">추가</string>
+    <!-- Quick Settings tile -->
+    <string name="tile_add">지출 추가</string>
+</resources>

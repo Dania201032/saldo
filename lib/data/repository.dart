@@ -133,6 +133,7 @@ class Repository {
         'KZ' => ('KZT', [('Kaspi', 'kaspi'), ('Halyk', 'halyk')], 15000000),
         'DE' => ('EUR', [('DKB', 'dkb'), ('Sparkasse', 'sparkasse')], 100000),
         'NL' => ('EUR', [('ING', 'ing'), ('bunq', 'bunq')], 100000),
+        'KR' => ('KRW', [('토스뱅크', 'tossbank'), ('카카오뱅크', 'kakaobank')], 150000000),
         _ => ('CNY', [('Alipay', 'alipay'), ('WeChat', 'wechat')], 300000),
       };
 
@@ -914,10 +915,26 @@ const bankAliases = <String, List<String>>{
   'triodos': ['triodos'],
   'targobank': ['targobank'],
   'hvb': ['hypovereinsbank', 'hvb'],
+  'tossbank': ['토스뱅크', 'toss bank', 'tossbank'],
+  'toss': ['토스', 'toss'],
+  'kakaobank': ['카카오뱅크', 'kakaobank', 'kakao bank'],
+  'kakaopay': ['카카오페이', 'kakaopay', 'kakao pay'],
+  'hana': ['하나은행', '하나카드', '하나', 'hana', 'keb'],
+  'shinhan': ['신한', 'shinhan'],
+  'kb': ['국민은행', 'kb국민', '국민', 'kb kookmin', 'kookmin', 'kbstar'],
+  'woori': ['우리은행', '우리카드', '우리', 'woori'],
+  'nh': ['농협', 'nh농협', 'nonghyup'],
+  'ibk': ['기업은행', 'ibk'],
+  'kbank': ['케이뱅크', 'k bank', 'kbank'],
+  'naverpay': ['네이버페이', 'naver pay', 'naverpay'],
+  'samsungcard': ['삼성카드', 'samsung card'],
+  'hyundaicard': ['현대카드', 'hyundai card'],
+  'lottecard': ['롯데카드', 'lotte card'],
+  'bccard': ['bc카드', '비씨카드', 'bc card'],
 };
 
 /// Short names that are only a bank as a whole word ("ING", not "Savings" or "Housing").
-const _wholeWordAliases = {'ing', 'sns', 'abn', 'vr', 'spk', 'hvb', 'dkb', 'n26'};
+const _wholeWordAliases = {'ing', 'sns', 'abn', 'vr', 'spk', 'hvb', 'dkb', 'n26', 'kb', 'nh', 'ibk', 'keb', 'toss', '토스', '하나', '우리', '국민'};
 
 /// "ВТБ", "Сбербанк", "Карта Tinkoff", "ING Girokonto" -> "vtb", "sber", "tbank", "ing"; null for other names.
 String? bankKeyForName(String name) {

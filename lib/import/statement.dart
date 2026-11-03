@@ -100,7 +100,8 @@ const _zeroDecimals = {'JPY', 'KRW', 'VND', 'IDR', 'CLP', 'ISK', 'UGX', 'PYG'};
 int minorDigits(String currency) => _zeroDecimals.contains(currency) ? 0 : 2;
 
 /// "1 234,56", "-1.234,56", "1,234.56", "¥12.00", "+12,34", "−5", "(12.00)" -> signed amount in
-/// minor units (2 digits after the point unless [digits]); null if there is no number.
+/// hundredths, as the app keeps every currency; [digits] is how many decimals the currency has
+/// (0 for won or yen: "12,000" is 12 000 ₩ = 1200000, decimals are dropped). null if there is no number.
 int? parseAmount(String? text, {int digits = 2}) {
   if (text == null) return null;
   var s = text.trim().replaceAll(RegExp(r'[\s   ]'), '').replaceAll('−', '-').replaceAll('–', '-');
@@ -143,7 +144,7 @@ int? parseAmount(String? text, {int digits = 2}) {
   if (whole.isEmpty) whole = '0';
   if (!RegExp(r'^\d+$').hasMatch(frac.isEmpty ? '0' : frac)) return null;
   if (frac.length > digits) frac = frac.substring(0, digits);
-  frac = frac.padRight(digits, '0');
+  frac = frac.padRight(2, '0');
   final v = int.tryParse('$whole$frac');
   if (v == null) return null;
   return negative ? -v : v;
