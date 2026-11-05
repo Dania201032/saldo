@@ -1,7 +1,7 @@
 name: budget_app
 description: "Сальдо (Saldo): personal finance that stays on your devices."
 publish_to: 'none'
-version: 0.20.1+2062
+version: 0.20.2+2063
 
 environment:
   sdk: ^3.13.5

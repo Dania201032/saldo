@@ -94,7 +94,7 @@ class PaymentAccessibilityService : AccessibilityService() {
             return
         }
 
-        val billRows = PaymentParsers.parseBillRows(texts, now)
+        val billRows = if (CapturedPayment.appFor(pkg) == "alipay") PaymentParsers.parseBillRows(texts, now) else emptyList()
         if (billRows.isNotEmpty()) {
             CaptureInbox.recordBills(this, billRows)
             return

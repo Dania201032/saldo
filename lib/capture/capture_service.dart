@@ -79,6 +79,9 @@ const alipayCategoryMap = <String, String>{
   'Travel': 'fun', '酒店旅游': 'fun', '运动户外': 'fun', '爱车养车': 'transport',
   '商业服务': 'other', '其他': 'other', '收入': 'other', '公益捐赠': 'other', '保险': 'other',
   '母婴亲子': 'shopping', '宠物': 'shopping', '美容美发': 'health',
+  '信用借还': 'other',
+  // Seen on a Korean phone: Alipay translates the Bills page.
+  '교통': 'transport', '잡화': 'shopping', '신용 대출': 'other',
 };
 
 /// Built-in category key for an Alipay category, adjusted to the direction.

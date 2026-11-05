@@ -102,6 +102,23 @@ void main() {
         'category': category,
       });
 
+  test('Alipay Bills in Korean: rows missed by the screen are added, known ones stay single', () async {
+    await importer.importAll([_p('screen', 33850, DateTime(2026, 11, 4, 22, 22, 30), merchant: '拼多多平台商户')]);
+    final created = await importer.importAll([
+      bill('拼多多', 33850, DateTime(2026, 11, 4, 22, 22), '잡화'),
+      bill('拼多多', 6840, DateTime(2026, 11, 4, 22, 38), '잡화'),
+      bill('拼多多', 3300, DateTime(2026, 11, 4, 22, 40), '잡화'),
+      bill('某某大学-某某路', 400, DateTime(2026, 11, 4, 17, 54), '교통'),
+      bill('某某路-某某大学', 400, DateTime(2026, 11, 4, 13, 9), '교통'),
+    ]);
+    expect(created, 4);
+    final txns = await all();
+    expect(txns, hasLength(5));
+    final transport = (await repo.categories()).firstWhere((c) => c.name == 'Транспорт');
+    expect(txns.where((t) => t.amountMinor == 400).map((t) => t.categoryId), [transport.id, transport.id]);
+    expect(txns.firstWhere((t) => t.amountMinor == 33850).merchant, '拼多多平台商户');
+  });
+
   test('Alipay Bills: confirms known payments, adds missed auto-debits with Alipay category', () async {
     // Known: the 19 ¥ success screen at 11:59:42. Missed: Hellobike auto-debit at 13:05.
     await importer.importAll([_p('screen', 1900, DateTime(2026, 10, 13, 11, 59, 42), merchant: '申梦上荷（吉浦路店）')]);

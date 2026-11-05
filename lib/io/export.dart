@@ -39,7 +39,7 @@ List<List<Object?>> transactionRows({
         categoryName(t.categoryId),
         accountName(t.accountId),
         t.merchant ?? '',
-        [if (t.excluded) tr('debt_repaid'), t.note ?? ''].where((s) => s.isNotEmpty).join('; '),
+        [if (t.excluded) tr(t.kind == TxnKind.income ? 'debt_repaid' : 'd_not_counted'), t.note ?? ''].where((s) => s.isNotEmpty).join('; '),
         switch (t.source) {
           'manual' => tr('src_manual'),
           'excel' => tr('src_excel'),

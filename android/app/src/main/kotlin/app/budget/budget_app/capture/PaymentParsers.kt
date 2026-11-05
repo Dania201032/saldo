@@ -60,6 +60,9 @@ object PaymentParsers {
     ): CapturedPayment? {
         val app = CapturedPayment.appFor(pkg) ?: return null
         if (IGNORED_SCREENS.containsMatchIn(screenClass)) return null
+        // The Bills list is no success screen, though its rows can say so ("免密支付成功") and its header
+        // has the month's total: that once made a 4 yuan metro ride a payment of 941.94.
+        if (isBillsScreen(texts)) return null
         val joined = texts.joinToString(" | ")
         if (SUCCESS_WORDS.none { joined.contains(it, ignoreCase = true) }) return null
 
@@ -103,19 +106,30 @@ object PaymentParsers {
         if (NUMBER_ONLY_RE.matches(t)) return false
         if (SUCCESS_WORDS.any { t.contains(it, ignoreCase = true) }) return false
         if (t.contains("***")) return false // masked account / phone
+        if (t.contains("处理中")) return false // a status line: "签约开通 处理中"
         return true
     }
 
     // --- Alipay Bills list (账单) ---
     // Real row (Oct 13): "哈啰出行车费，-2.50元，Auto debit successful，TransportAuto debit successful，，Today 13:05"
     //                    "申梦上荷（吉浦路店），-19.00元，，Food，，Today 11:59"
+    // Alipay translates the page, so its words depend on the phone. Real row (Nov 5, Korean):
+    //   "拼多多-商户单号XP0000000000…，-33.00元，免密支付成功，잡화免密支付成功，，어제 22:40"
+    // The list is recognized by the shape of its rows, which stays the same in every language.
 
     private val BILLS_MARKERS = setOf("Search transaction history", "搜索交易记录")
     private val BILL_ROW_RE = Regex("^(.+?)，([+-]?)([\\d,]+(?:\\.\\d{1,2})?)元，(.*)$")
-    private val BILL_SKIP_RE = Regex("关闭|失败|Closed|Failed|Cancelled|已取消", RegexOption.IGNORE_CASE)
+    private val BILL_SKIP_RE = Regex(
+        "关闭|失败|Closed|Failed|Cancelled|已取消|실패|취소|종료|닫힘|마감|Закрыт|Отмен|Ошибка|" +
+            "Geschlossen|Fehlgeschlagen|Storniert|Gesloten|Mislukt|Geannuleerd",
+        RegexOption.IGNORE_CASE,
+    )
     private val TRAILING_DATETIME_RE = Regex("-\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}(:\\d{2})?$")
 
-    fun isBillsScreen(texts: List<String>) = texts.any { it in BILLS_MARKERS }
+    private val TODAY_WORDS = setOf("today", "今天", "오늘", "今日", "сегодня", "бүгін", "heute", "vandaag")
+    private val YESTERDAY_WORDS = setOf("yesterday", "昨天", "어제", "昨日", "вчера", "кеше", "gestern", "gisteren")
+
+    fun isBillsScreen(texts: List<String>) = texts.any { it in BILLS_MARKERS || BILL_ROW_RE.containsMatchIn(it) }
 
     /** Rows of the Bills list visible on screen; [now] resolves "Today"/"Yesterday". */
     fun parseBillRows(texts: List<String>, now: Long): List<CapturedPayment> {
@@ -149,13 +163,17 @@ object PaymentParsers {
         return out
     }
 
-    /** "收款-KIRILL" -> "KIRILL", "扫收钱码付款-给韩学林" -> "韩学林", "上海公交-20路-2026-10-11 10:49:53" -> "上海公交-20路". */
+    /**
+     * "收款-KIRILL" -> "KIRILL", "扫收钱码付款-给韩学林" -> "韩学林", "上海公交-20路-2026-10-11 10:49:53" -> "上海公交-20路",
+     * "拼多多-商户单号XP0000000000" -> "拼多多".
+     */
     fun cleanBillMerchant(s: String): String = s.trim()
         .replace(TRAILING_DATETIME_RE, "")
+        .replace(Regex("-商户单号\\S*$"), "")
         .replaceFirst(Regex("^(收款-|扫收钱码付款-给|转账-|转账给)"), "")
         .trim()
 
-    /** "Today 13:05", "昨天 07:50", "10-11 18:47", "2025-12-30 18:47" -> epoch ms (local time). */
+    /** "Today 13:05", "어제 07:50", "10-11 18:47", "11월 2일 18:47", "2025-12-30 18:47" -> epoch ms (local time). */
     fun parseBillTime(s: String, now: Long): Long? {
         val cal = Calendar.getInstance().apply { timeInMillis = now }
         fun at(y: Int, mo: Int, d: Int, h: Int, mi: Int): Long = Calendar.getInstance().apply {
@@ -164,18 +182,21 @@ object PaymentParsers {
         }.timeInMillis
         fun Calendar.at(h: Int, mi: Int) = at(get(Calendar.YEAR), get(Calendar.MONTH) + 1, get(Calendar.DAY_OF_MONTH), h, mi)
 
-        Regex("^(Today|今天)\\s+(\\d{1,2}):(\\d{2})$").find(s)?.let {
-            return cal.at(it.groupValues[2].toInt(), it.groupValues[3].toInt())
+        Regex("^(\\S+)\\s+(\\d{1,2}):(\\d{2})$").find(s)?.let {
+            val word = it.groupValues[1].lowercase()
+            val h = it.groupValues[2].toInt()
+            val mi = it.groupValues[3].toInt()
+            if (word in TODAY_WORDS) return cal.at(h, mi)
+            if (word in YESTERDAY_WORDS) {
+                val y = (cal.clone() as Calendar).apply { add(Calendar.DAY_OF_MONTH, -1) }
+                return y.at(h, mi)
+            }
         }
-        Regex("^(Yesterday|昨天)\\s+(\\d{1,2}):(\\d{2})$").find(s)?.let {
-            val y = (cal.clone() as Calendar).apply { add(Calendar.DAY_OF_MONTH, -1) }
-            return y.at(it.groupValues[2].toInt(), it.groupValues[3].toInt())
-        }
-        Regex("^(\\d{4})-(\\d{1,2})-(\\d{1,2})\\s+(\\d{1,2}):(\\d{2})$").find(s)?.let { m ->
+        Regex("^(\\d{4})(?:-|年|년\\s*)(\\d{1,2})(?:-|月|월\\s*)(\\d{1,2})[日일]?\\s+(\\d{1,2}):(\\d{2})$").find(s)?.let { m ->
             val v = m.groupValues.drop(1).map { it.toInt() }
             return at(v[0], v[1], v[2], v[3], v[4])
         }
-        Regex("^(\\d{1,2})-(\\d{1,2})\\s+(\\d{1,2}):(\\d{2})$").find(s)?.let { m ->
+        Regex("^(\\d{1,2})(?:-|月|월\\s*)(\\d{1,2})[日일]?\\s+(\\d{1,2}):(\\d{2})$").find(s)?.let { m ->
             val v = m.groupValues.drop(1).map { it.toInt() }
             val year = cal.get(Calendar.YEAR)
             var ts = at(year, v[0], v[1], v[2], v[3])

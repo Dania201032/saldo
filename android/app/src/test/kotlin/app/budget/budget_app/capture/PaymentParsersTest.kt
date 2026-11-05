@@ -163,7 +163,68 @@ class PaymentParsersTest {
         assertEquals("Life", rows[5].category)
 
         // Not the Bills screen -> nothing.
-        assertEquals(0, PaymentParsers.parseBillRows(texts.drop(1), now).size)
+        assertEquals(0, PaymentParsers.parseBillRows(listOf("Food", "Today 11:59", "-19.00"), now).size)
+    }
+
+    /** The Bills list of a real Korean phone, Nov 5 2026 at 13:00. */
+    private val koreanNow = java.util.Calendar.getInstance().apply { clear(); set(2026, 10, 5, 13, 0, 0) }.timeInMillis
+    private val koreanBills = listOf(
+        "거래 기록 검색", "검색", "모두", "지출", "송금", "환불", "필터링", "11월", "지출 ¥941.94", "수입 ¥0.00", "분석",
+        "小电充电，-99.00元，자동 차감 성공，신용 대출자동 차감 성공，，오늘 00:53",
+        "拼多多-商户单号XP0000000000000000000000000001，-33.00元，免密支付成功，잡화免密支付成功，，어제 22:40",
+        "拼多多-商户单号XP0000000000000000000000000002，-68.40元，免密支付成功，잡화免密支付成功，，어제 22:38",
+        "拼多多-商户单号XP0000000000000000000000000003，-36.63元，，잡화，，어제 22:33",
+        "拼多多-商户单号XP0000000000000000000000000004，-72.01元，，잡화，，어제 22:27",
+        "拼多多-商户单号XP0000000000000000000000000002，-338.50元，，잡화，，어제 22:22",
+        "某某大学-某某路，-4.00元，，교통，，어제 17:54",
+        "某某路-某某大学，-4.00元，，교통，，어제 13:09",
+        "本页翻译", "본 페이지 번역",
+    )
+
+    @Test
+    fun translatedBillsListIsNoSuccessScreen() {
+        // It used to be taken for one: amount from the header, merchant from the metro row.
+        assertNull(PaymentParsers.parseSuccessScreen(alipay, "com.alipay.mobile.bill.list", koreanBills, koreanNow, null))
+    }
+
+    @Test
+    fun translatedBillsListGivesEveryRow() {
+        val rows = PaymentParsers.parseBillRows(koreanBills, koreanNow)
+        assertEquals(listOf(9900L, 3300L, 6840L, 3663L, 7201L, 33850L, 400L, 400L), rows.map { it.amountMinor })
+        fun at(d: Int, h: Int, mi: Int) = java.util.Calendar.getInstance().apply { clear(); set(2026, 10, d, h, mi, 0) }.timeInMillis
+        assertEquals(at(5, 0, 53), rows[0].ts)
+        assertEquals("신용 대출", rows[0].category)
+        assertEquals("拼多多", rows[1].merchant)
+        assertEquals("잡화", rows[1].category)
+        assertEquals(at(4, 22, 40), rows[1].ts)
+        assertEquals("某某大学-某某路", rows[6].merchant)
+        assertEquals("교통", rows[6].category)
+        assertEquals(at(4, 13, 9), rows[7].ts)
+    }
+
+    @Test
+    fun translatedFailedRowsAreSkipped() {
+        val rows = listOf("상점，-5.00元，거래 실패，잡화거래 실패，，오늘 10:00", "상점，-6.00元，결제 취소，잡화결제 취소，，오늘 10:01")
+        assertEquals(0, PaymentParsers.parseBillRows(rows, koreanNow).size)
+    }
+
+    @Test
+    fun billTimeInOtherLanguages() {
+        fun at(y: Int, m: Int, d: Int, h: Int, mi: Int) = java.util.Calendar.getInstance().apply { clear(); set(y, m - 1, d, h, mi, 0) }.timeInMillis
+        assertEquals(at(2026, 11, 5, 9, 5), PaymentParsers.parseBillTime("오늘 09:05", koreanNow))
+        assertEquals(at(2026, 11, 4, 9, 5), PaymentParsers.parseBillTime("Вчера 09:05", koreanNow))
+        assertEquals(at(2026, 11, 2, 18, 47), PaymentParsers.parseBillTime("11월 2일 18:47", koreanNow))
+        assertEquals(at(2026, 11, 2, 18, 47), PaymentParsers.parseBillTime("11月2日 18:47", koreanNow))
+        assertEquals(at(2025, 12, 30, 18, 47), PaymentParsers.parseBillTime("2025년 12월 30일 18:47", koreanNow))
+        assertNull(PaymentParsers.parseBillTime("언젠가 18:47", koreanNow))
+    }
+
+    @Test
+    fun aProcessingLineIsNoMerchant() {
+        val texts = listOf("支付成功", "￥36.63", "签约开通 处理中", "拼多多平台商户", "完成")
+        val p = PaymentParsers.parseSuccessScreen(alipay, "com.alipay.Result", texts, now, null)
+        assertEquals(3663L, p?.amountMinor)
+        assertEquals("拼多多平台商户", p?.merchant)
     }
 
     @Test

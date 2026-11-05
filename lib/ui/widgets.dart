@@ -377,7 +377,7 @@ class TxnTile extends StatelessWidget {
           else if (txn.ownTransfer)
             Text(tr('own_transfer_short'), style: small)
           else if (txn.excluded)
-            Text(tr('debt_repaid'), style: small)
+            Text(tr(isIncome ? 'debt_repaid' : 'd_not_counted'), style: small)
           else if (txn.isSplit)
             Text(tr('my_share', [formatMoney(txn.shareMinor!, txn.currency)]), style: small)
           else if (txn.currency != state.baseCurrency)
