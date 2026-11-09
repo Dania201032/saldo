@@ -5,7 +5,7 @@ import 'package:budget_app/data/repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-CapturedPayment _p(String source, int minor, DateTime t, {String? merchant, String dir = 'expense'}) =>
+CapturedPayment _p(String source, int minor, DateTime t, {String? merchant, String dir = 'expense', String raw = ''}) =>
     CapturedPayment.fromJson({
       'source': source,
       'app': 'alipay',
@@ -15,7 +15,7 @@ CapturedPayment _p(String source, int minor, DateTime t, {String? merchant, Stri
       'merchant': merchant,
       'method': source == 'screen' ? 'Balance' : null,
       'ts': t.millisecondsSinceEpoch,
-      'raw': '',
+      'raw': raw,
     });
 
 void main() {
@@ -86,6 +86,51 @@ void main() {
     expect(await all(), hasLength(1));
     // A different merchant with the same amount is a different payment.
     await importer.importAll([_p('screen', 1900, first.add(const Duration(minutes: 8)), merchant: '全家')]);
+    expect(await all(), hasLength(2));
+  });
+
+  test('success card shown again 38 minutes later, on the way to Balance, is not a new payment', () async {
+    // Real case (Nov 9): 奥乐齐 16.60 paid at 12:56, Alipay showed its card again at 13:34.
+    final paid = DateTime(2026, 11, 9, 12, 56, 10);
+    await importer.importAll([
+      _p('notification', 1660, paid.subtract(const Duration(seconds: 2)), raw: '交易提醒 | 你有一笔16.60元的支出，点此查看详情。'),
+      _p('screen', 1660, paid, merchant: '奥乐齐商业（上海）'),
+    ]);
+    await importer.importAll([_p('screen', 1660, DateTime(2026, 11, 9, 13, 34, 5), merchant: '奥乐齐商业（上海）')]);
+    expect(await all(), hasLength(1));
+  });
+
+  test('a second purchase at the same shop hours later is still recorded, with its shop', () async {
+    final paid = DateTime(2026, 11, 9, 12, 56, 10);
+    await importer.importAll([_p('screen', 1660, paid, merchant: '奥乐齐商业（上海）')]);
+    final again = DateTime(2026, 11, 9, 17, 2, 0);
+    await importer.importAll([
+      _p('notification', 1660, again, raw: '交易提醒 | 你有一笔16.60元的支出，点此查看详情。'),
+      _p('screen', 1660, again.add(const Duration(seconds: 2)), merchant: '奥乐齐商业（上海）'),
+    ]);
+    final txns = await all();
+    expect(txns, hasLength(2));
+    expect(txns.every((t) => t.merchant == '奥乐齐商业（上海）'), isTrue);
+  });
+
+  test("the payee's notice of my own collection-code payment is not income", () async {
+    // Real case (Nov 9): paid 张三 6 ¥ at 18:08; opening Balance at 18:40 brought this notice.
+    final paid = DateTime(2026, 11, 9, 18, 8, 21);
+    await importer.importAll([
+      _p('notification', 600, paid, raw: '交易提醒 | 你有一笔6.00元的支出，点此查看详情。'),
+      _p('screen', 600, paid.add(const Duration(seconds: 1)), merchant: '张三'),
+    ]);
+    await importer.importAll([
+      _p('notification', 600, DateTime(2026, 11, 9, 18, 40, 1),
+          dir: 'income', raw: '你已成功收款6.00元（老顾客消费） | 已转入余额 你的签到积分快过期了，速来领取>>'),
+    ]);
+    final txns = await all();
+    expect(txns, hasLength(1));
+    expect(txns.single.kind, TxnKind.expense);
+    // Without a payment of that amount before it, money received stays income.
+    await importer.importAll([
+      _p('notification', 2500, DateTime(2026, 11, 9, 19, 0), dir: 'income', raw: '你已成功收款25.00元（老顾客消费） | 已转入余额'),
+    ]);
     expect(await all(), hasLength(2));
   });
 

@@ -742,6 +742,24 @@ class Repository {
     return null;
   }
 
+  /// True if [app] recorded an operation of this kind and amount between [from] and [to].
+  Future<bool> hasCaptured({
+    required String app,
+    required TxnKind kind,
+    required int amountMinor,
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final rows = await db.query(
+      'transactions',
+      columns: ['id'],
+      where: 'source LIKE ? AND kind = ? AND amount_minor = ? AND ts BETWEEN ? AND ? AND $_mine',
+      whereArgs: ['$app:%', kind.name, amountMinor, from.millisecondsSinceEpoch, to.millisecondsSinceEpoch],
+      limit: 1,
+    );
+    return rows.isNotEmpty;
+  }
+
   /// True if this success screen was already recorded: Alipay shows the same success card again
   /// when its home page is reopened, sometimes many minutes later.
   Future<bool> isRepeatedScreen({

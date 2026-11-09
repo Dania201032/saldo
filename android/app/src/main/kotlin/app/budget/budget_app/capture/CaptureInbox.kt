@@ -27,8 +27,11 @@ object CaptureInbox {
     const val CHANNEL_ID = "captured_payments"
     private const val SAME_PAYMENT_WINDOW_MS = 3 * 60_000L
 
-    /** Alipay shows the success card again when its home page is reopened later. */
-    private const val SAME_SCREEN_WINDOW_MS = 30 * 60_000L
+    /** Alipay shows the success card again when it is reopened, even hours later (Nov 9: after 38 minutes). */
+    private const val SAME_SCREEN_WINDOW_MS = 12 * 60 * 60_000L
+
+    private const val PAYEE_ECHO_WINDOW_MS = 3 * 60 * 60_000L
+    private val PAYEE_ECHO = Regex("老顾客消费|新顾客消费")
 
     private data class Recent(val payment: CapturedPayment, val notificationId: Int)
 
@@ -53,20 +56,33 @@ object CaptureInbox {
         }
 
         recent.removeAll { p.ts - it.payment.ts > SAME_SCREEN_WINDOW_MS }
-        // The same success screen seen again (re-render, or the card shown again minutes later).
-        // Within a few minutes the merchant may differ: it appears on the page a moment later.
-        if (p.source == "screen" && recent.any {
-                it.payment.source.contains("screen") && it.payment.app == p.app &&
-                    it.payment.amountMinor == p.amountMinor &&
-                    (it.payment.merchant == p.merchant || p.ts - it.payment.ts <= SAME_PAYMENT_WINDOW_MS)
-            }
-        ) return
 
         val match = recent.firstOrNull {
             it.payment.app == p.app && it.payment.direction == p.direction &&
                 it.payment.amountMinor == p.amountMinor && p.ts - it.payment.ts <= SAME_PAYMENT_WINDOW_MS &&
                 !it.payment.source.contains(p.source)
         }
+
+        // The same success screen seen again: a re-render, or the card Alipay shows again each time
+        // it is reopened, even hours later. Within a few minutes the merchant may differ (it appears
+        // on the page a moment later); later it must match, and a fresh notification of the same
+        // amount means a new payment at the same shop.
+        if (p.source == "screen" && recent.any {
+                it.payment.source.contains("screen") && it.payment.app == p.app &&
+                    it.payment.amountMinor == p.amountMinor &&
+                    (p.ts - it.payment.ts <= SAME_PAYMENT_WINDOW_MS ||
+                        (it.payment.merchant == p.merchant && match == null))
+            }
+        ) return
+
+        // Opening Alipay after paying by someone's collection code can bring the payee's notice of
+        // that very payment: "你已成功收款6.00元（老顾客消费） 已转入余额…". It is not money received.
+        if (p.source == "notification" && p.app == "alipay" && p.direction == "income" &&
+            PAYEE_ECHO.containsMatchIn(p.raw) && recent.any {
+                it.payment.app == p.app && it.payment.direction == "expense" &&
+                    it.payment.amountMinor == p.amountMinor && p.ts - it.payment.ts in 0..PAYEE_ECHO_WINDOW_MS
+            }
+        ) return
 
         File(ctx.filesDir, FILE_NAME).appendText(LocalCrypto.seal(p.toJson().toString()) + "\n")
         WidgetRefresh.afterCapture(ctx)

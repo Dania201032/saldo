@@ -510,6 +510,19 @@ class CaptureImporter {
           await repo.isRepeatedNotification(app: p.app, amountMinor: p.amountMinor, raw: p.raw, time: p.time)) {
         continue;
       }
+      // Opening Alipay after paying by someone's collection code can bring "你已成功收款6.00元（老顾客消费）
+      // 已转入余额…" about that very payment (Nov 9: paid 6 ¥ at 18:08, this came at 18:40, the balance
+      // only went down). It is the payee's side of my own expense, not money I received.
+      if (p.source == 'notification' && p.app == 'alipay' && p.kind == TxnKind.income &&
+          _payeeEcho.hasMatch(p.raw) &&
+          await repo.hasCaptured(
+              app: p.app,
+              kind: TxnKind.expense,
+              amountMinor: p.amountMinor,
+              from: p.time.subtract(const Duration(hours: 3)),
+              to: p.time)) {
+        continue;
+      }
       final isBank = p.source == 'bank' || p.source == 'sms';
       // Paid by phone: Google Wallet and the card's bank both notify about the same payment.
       if (p.app == walletApp) {
@@ -539,6 +552,18 @@ class CaptureImporter {
       if (twin != null) {
         await repo.updateTxn(await _merge(twin, p));
         await _settle(twin.id!);
+        continue;
+      }
+      // Alipay shows the last success card again whenever it is reopened, even hours later
+      // (Nov 9: 奥乐齐 16.60 paid at 12:56, the card came back at 13:34 on the way to Balance).
+      // A new payment at the same shop has its own notification and merges above instead.
+      if (p.source == 'screen' &&
+          await repo.isRepeatedScreen(
+              app: p.app,
+              amountMinor: p.amountMinor,
+              merchant: p.merchant,
+              time: p.time,
+              window: const Duration(hours: 12))) {
         continue;
       }
 
@@ -594,6 +619,9 @@ class CaptureImporter {
   Future<bool> checkOwnTransfer(Txn t) => _ownTransfer(t);
 
   /// "Перевод между своими счетами", "перевод себе" in the bank's text.
+  /// Alipay's notice to a collection-code owner ("老顾客消费" = paid by a returning customer).
+  static final _payeeEcho = RegExp('老顾客消费|新顾客消费');
+
   static final _toMyself = RegExp(
     r'между\s+(своими\s+)?сч[её]тами|перевод\s+себе|на\s+сво[йи]\s+сч[её]т|со\s+своего\s+сч[её]та|'
     r'own\s+accounts?|to\s+myself|өз\s+шоттар',
